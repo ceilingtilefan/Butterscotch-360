@@ -678,31 +678,24 @@ static void handleMod(VMContext* ctx) {
     stackPush(&ctx->stack, RValue_makeReal(result));
 }
 
+#define SIMPLE_BYTECODE_BITWISE_OPERATION(op) \
+    RValue b = stackPop(&ctx->stack); \
+    RValue a = stackPop(&ctx->stack); \
+    int32_t result = RValue_toInt32(a) op RValue_toInt32(b); \
+    RValue_free(&a); \
+    RValue_free(&b); \
+    stackPush(&ctx->stack, RValue_makeInt32(result))
+
 static void handleAnd(VMContext* ctx) {
-    RValue b = stackPop(&ctx->stack);
-    RValue a = stackPop(&ctx->stack);
-    int32_t result = RValue_toInt32(a) & RValue_toInt32(b);
-    RValue_free(&a);
-    RValue_free(&b);
-    stackPush(&ctx->stack, RValue_makeInt32(result));
+    SIMPLE_BYTECODE_BITWISE_OPERATION(&);
 }
 
 static void handleOr(VMContext* ctx) {
-    RValue b = stackPop(&ctx->stack);
-    RValue a = stackPop(&ctx->stack);
-    int32_t result = RValue_toInt32(a) | RValue_toInt32(b);
-    RValue_free(&a);
-    RValue_free(&b);
-    stackPush(&ctx->stack, RValue_makeInt32(result));
+    SIMPLE_BYTECODE_BITWISE_OPERATION(|);
 }
 
 static void handleXor(VMContext* ctx) {
-    RValue b = stackPop(&ctx->stack);
-    RValue a = stackPop(&ctx->stack);
-    int32_t result = RValue_toInt32(a) ^ RValue_toInt32(b);
-    RValue_free(&a);
-    RValue_free(&b);
-    stackPush(&ctx->stack, RValue_makeInt32(result));
+    SIMPLE_BYTECODE_BITWISE_OPERATION(^);
 }
 
 static void handleNeg(VMContext* ctx) {
@@ -720,21 +713,11 @@ static void handleNot(VMContext* ctx) {
 }
 
 static void handleShl(VMContext* ctx) {
-    RValue b = stackPop(&ctx->stack);
-    RValue a = stackPop(&ctx->stack);
-    int32_t result = RValue_toInt32(a) << RValue_toInt32(b);
-    RValue_free(&a);
-    RValue_free(&b);
-    stackPush(&ctx->stack, RValue_makeInt32(result));
+    SIMPLE_BYTECODE_BITWISE_OPERATION(<<);
 }
 
 static void handleShr(VMContext* ctx) {
-    RValue b = stackPop(&ctx->stack);
-    RValue a = stackPop(&ctx->stack);
-    int32_t result = RValue_toInt32(a) >> RValue_toInt32(b);
-    RValue_free(&a);
-    RValue_free(&b);
-    stackPush(&ctx->stack, RValue_makeInt32(result));
+    SIMPLE_BYTECODE_BITWISE_OPERATION(>>);
 }
 
 static void handleConv(VMContext* ctx, uint32_t instr) {
