@@ -632,12 +632,10 @@ static void dispatchCollisionEvents(Runner* runner) {
                             if (!Collision_instancesOverlapPrecise(dataWin, self, other, bboxSelf, bboxOther)) continue;
                         }
 
-                        // Collision detected! If either instance is solid, restore to xprevious/yprevious
+                        // Collision detected! If either instance is solid, restore self to xprevious/yprevious
                         if (self->solid || other->solid) {
                             self->x = self->xprevious;
                             self->y = self->yprevious;
-                            other->x = other->xprevious;
-                            other->y = other->yprevious;
                         }
 
                         executeCollisionEvent(runner, self, other, targetObjIndex);

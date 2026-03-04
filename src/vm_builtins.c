@@ -138,10 +138,10 @@ RValue VMBuiltins_getVariable(VMContext* ctx, const char* name, int32_t arrayInd
             if (runner != nullptr) {
                 InstanceBBox bbox = Collision_computeBBox(runner->dataWin, inst);
                 if (bbox.valid) {
-                    if (strcmp(name, "bbox_left") == 0) return RValue_makeReal(round(bbox.left));
-                    if (strcmp(name, "bbox_right") == 0) return RValue_makeReal(round(bbox.right));
-                    if (strcmp(name, "bbox_top") == 0) return RValue_makeReal(round(bbox.top));
-                    return RValue_makeReal(round(bbox.bottom));
+                    if (strcmp(name, "bbox_left") == 0) return RValue_makeReal(bbox.left);
+                    if (strcmp(name, "bbox_right") == 0) return RValue_makeReal(bbox.right);
+                    if (strcmp(name, "bbox_top") == 0) return RValue_makeReal(bbox.top);
+                    return RValue_makeReal(bbox.bottom);
                 }
             }
             if (strcmp(name, "bbox_left") == 0 || strcmp(name, "bbox_right") == 0) return RValue_makeReal(inst->x);

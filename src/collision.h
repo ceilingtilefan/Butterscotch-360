@@ -41,12 +41,12 @@ static inline InstanceBBox Collision_computeBBox(DataWin* dataWin, Instance* ins
         double lx1 = inst->imageXscale * (marginR - originX);
         double ly1 = inst->imageYscale * (marginB - originY);
 
-        // Rotate all 4 corners
+        // Rotate all 4 corners (CW rotation matching renderer's negated angle for Y-down screen coords)
         double cx[4], cy[4];
-        cx[0] = cs * lx0 - sn * ly0;  cy[0] = sn * lx0 + cs * ly0;
-        cx[1] = cs * lx1 - sn * ly0;  cy[1] = sn * lx1 + cs * ly0;
-        cx[2] = cs * lx0 - sn * ly1;  cy[2] = sn * lx0 + cs * ly1;
-        cx[3] = cs * lx1 - sn * ly1;  cy[3] = sn * lx1 + cs * ly1;
+        cx[0] = cs * lx0 + sn * ly0;  cy[0] = -sn * lx0 + cs * ly0;
+        cx[1] = cs * lx1 + sn * ly0;  cy[1] = -sn * lx1 + cs * ly0;
+        cx[2] = cs * lx0 + sn * ly1;  cy[2] = -sn * lx0 + cs * ly1;
+        cx[3] = cs * lx1 + sn * ly1;  cy[3] = -sn * lx1 + cs * ly1;
 
         double minX = cx[0], maxX = cx[0], minY = cy[0], maxY = cy[0];
         for (int c = 1; 4 > c; c++) {
@@ -90,9 +90,9 @@ static inline bool Collision_pointInMask(Sprite* spr, Instance* inst, double px,
     double dx = px - inst->x;
     double dy = py - inst->y;
 
-    // Inverse rotate
+    // Inverse of CW rotation is standard CCW rotation (positive angle)
     if (fabs(inst->imageAngle) > 0.0001) {
-        double rad = -inst->imageAngle * M_PI / 180.0;
+        double rad = inst->imageAngle * M_PI / 180.0;
         double cs = cos(rad);
         double sn = sin(rad);
         double rx = cs * dx - sn * dy;
