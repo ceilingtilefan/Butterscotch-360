@@ -492,6 +492,15 @@ static FontGlyph* findGlyph(Font* font, uint16_t ch) {
     return nullptr;
 }
 
+static float getKerningOffset(FontGlyph* glyph, uint16_t nextCh) {
+    repeat(glyph->kerningCount, k) {
+        if (glyph->kerning[k].character == (int16_t) nextCh) {
+            return glyph->kerning[k].shiftModifier;
+        }
+    }
+    return 0;
+}
+
 static float measureLineWidth(Font* font, const char* line, int32_t len) {
     float width = 0;
     repeat(len, i) {
@@ -501,18 +510,64 @@ static float measureLineWidth(Font* font, const char* line, int32_t len) {
 
         width += glyph->shift;
 
-        // Add kerning if next character has a kerning pair
         if (len > i + 1) {
             uint16_t nextCh = (uint8_t) line[i + 1];
-            repeat(glyph->kerningCount, k) {
-                if (glyph->kerning[k].character == (int16_t) nextCh) {
-                    width += glyph->kerning[k].shiftModifier;
-                    break;
-                }
-            }
+            width += getKerningOffset(glyph, nextCh);
         }
     }
     return width;
+}
+
+// Preprocesses GML text: converts unescaped # to \n, and \# to literal #.
+// Returns a heap-allocated string that must be freed by the caller.
+static char* preprocessGmlText(const char* text) {
+    int32_t len = (int32_t) strlen(text);
+    char* result = malloc(len + 1);
+    int32_t out = 0;
+
+    repeat(len, i) {
+        if (text[i] == '#') {
+            if (out > 0 && result[out - 1] == '\\') {
+                // \# -> replace the already-written backslash with literal #
+                result[out - 1] = '#';
+            } else {
+                result[out++] = '\n';
+            }
+        } else {
+            result[out++] = text[i];
+        }
+    }
+    result[out] = '\0';
+    return result;
+}
+
+// Returns true if c is \r or \n
+static bool isNewlineChar(char c) {
+    return c == '\n' || c == '\r';
+}
+
+// Counts the number of lines in preprocessed text, treating \r\n and \n\r as single breaks
+static int32_t countLines(const char* text, int32_t len) {
+    int32_t count = 1;
+    for (int32_t i = 0; len > i; i++) {
+        if (isNewlineChar(text[i])) {
+            count++;
+            // Treat \r\n or \n\r as a single line break
+            if (len > i + 1 && isNewlineChar(text[i + 1]) && text[i] != text[i + 1]) {
+                i++;
+            }
+        }
+    }
+    return count;
+}
+
+// Advances lineStart past the newline at lineEnd, treating \r\n and \n\r as single breaks
+static int32_t skipNewline(const char* text, int32_t lineEnd, int32_t textLen) {
+    int32_t next = lineEnd + 1;
+    if (textLen > next && isNewlineChar(text[next]) && text[lineEnd] != text[next]) {
+        next++;
+    }
+    return next;
 }
 
 static void glDrawText(Renderer* renderer, const char* text, float x, float y, float xscale, float yscale, float angleDeg) {
@@ -543,13 +598,12 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
     float g = (float) BGR_G(color) / 255.0f;
     float b = (float) BGR_B(color) / 255.0f;
 
-    // Split text into lines on \n, \r, and # (GML newline in draw_text)
-    // Count lines and record their start/length
-    int32_t lineCount = 1;
-    int32_t textLen = (int32_t) strlen(text);
-    repeat(textLen, i) {
-        if (text[i] == '\n' || text[i] == '\r' || text[i] == '#') lineCount++;
-    }
+    // Preprocess: convert # to \n (and \# to literal #)
+    char* processed = preprocessGmlText(text);
+    int32_t textLen = (int32_t) strlen(processed);
+
+    // Count lines, treating \r\n and \n\r as single breaks
+    int32_t lineCount = countLines(processed, textLen);
 
     // Vertical alignment offset
     float totalHeight = (float) lineCount * (float) font->emSize;
@@ -566,16 +620,16 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
     float cursorY = valignOffset;
     int32_t lineStart = 0;
 
-    repeat(lineCount, lineIdx) {
+    for (int32_t lineIdx = 0; lineCount > lineIdx; lineIdx++) {
         // Find end of current line
         int32_t lineEnd = lineStart;
-        while (textLen > lineEnd && text[lineEnd] != '\n' && text[lineEnd] != '\r' && text[lineEnd] != '#') {
+        while (textLen > lineEnd && !isNewlineChar(processed[lineEnd])) {
             lineEnd++;
         }
         int32_t lineLen = lineEnd - lineStart;
 
         // Horizontal alignment offset for this line
-        float lineWidth = measureLineWidth(font, text + lineStart, lineLen);
+        float lineWidth = measureLineWidth(font, processed + lineStart, lineLen);
         float halignOffset = 0;
         if (renderer->drawHalign == 1) halignOffset = -lineWidth / 2.0f;
         else if (renderer->drawHalign == 2) halignOffset = -lineWidth;
@@ -584,7 +638,7 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
 
         // Render each glyph in the line
         repeat(lineLen, i) {
-            uint16_t ch = (uint8_t) text[lineStart + i];
+            uint16_t ch = (uint8_t) processed[lineStart + i];
             FontGlyph* glyph = findGlyph(font, ch);
             if (glyph == nullptr) continue;
             if (glyph->sourceWidth == 0 || glyph->sourceHeight == 0) {
@@ -636,19 +690,21 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
             // Advance cursor by glyph shift + kerning
             cursorX += glyph->shift;
             if (lineLen > i + 1) {
-                uint16_t nextCh = (uint8_t) text[lineStart + i + 1];
-                repeat(glyph->kerningCount, k) {
-                    if (glyph->kerning[k].character == (int16_t) nextCh) {
-                        cursorX += glyph->kerning[k].shiftModifier;
-                        break;
-                    }
-                }
+                uint16_t nextCh = (uint8_t) processed[lineStart + i + 1];
+                cursorX += getKerningOffset(glyph, nextCh);
             }
         }
 
         cursorY += (float) font->emSize;
-        lineStart = lineEnd + 1; // skip the newline character
+        // Skip past the newline, treating \r\n and \n\r as single breaks
+        if (textLen > lineEnd) {
+            lineStart = skipNewline(processed, lineEnd, textLen);
+        } else {
+            lineStart = lineEnd;
+        }
     }
+
+    free(processed);
 }
 
 // ===[ Vtable ]===
