@@ -177,6 +177,9 @@ RValue VMBuiltins_getVariable(VMContext* ctx, const char* name, int32_t arrayInd
         return RValue_makeUndefined();
     }
 
+    // Surfaces
+    if (strcmp(name, "application_surface") == 0) return RValue_makeReal(-1.0); // sentinel ID for the application surface
+
     // Constants that GMS defines
     if (strcmp(name, "true") == 0) return RValue_makeBool(true);
     if (strcmp(name, "false") == 0) return RValue_makeBool(false);
@@ -1081,8 +1084,15 @@ STUB_RETURN_UNDEFINED(window_set_fullscreen)
 STUB_RETURN_UNDEFINED(window_set_caption)
 STUB_RETURN_UNDEFINED(window_set_size)
 STUB_RETURN_UNDEFINED(window_center)
-STUB_RETURN_ZERO(window_get_width)
-STUB_RETURN_ZERO(window_get_height)
+static RValue builtinWindowGetWidth(VMContext* ctx, RValue* args, int32_t argCount) {
+    (void) args; (void) argCount;
+    return RValue_makeReal((double) ctx->dataWin->gen8.defaultWindowWidth);
+}
+
+static RValue builtinWindowGetHeight(VMContext* ctx, RValue* args, int32_t argCount) {
+    (void) args; (void) argCount;
+    return RValue_makeReal((double) ctx->dataWin->gen8.defaultWindowHeight);
+}
 
 // Game stubs
 STUB_RETURN_UNDEFINED(game_restart)
@@ -1239,8 +1249,26 @@ STUB_RETURN_UNDEFINED(surface_free)
 STUB_RETURN_UNDEFINED(surface_set_target)
 STUB_RETURN_UNDEFINED(surface_reset_target)
 STUB_RETURN_ZERO(surface_exists)
-STUB_RETURN_ZERO(surface_get_width)
-STUB_RETURN_ZERO(surface_get_height)
+// application_surface is surface ID -1 (sentinel); for it, return the window dimensions
+static RValue builtinSurfaceGetWidth(VMContext* ctx, RValue* args, int32_t argCount) {
+    (void) argCount;
+    int32_t surfaceId = (int32_t) RValue_toReal(args[0]);
+    if (surfaceId == -1) {
+        return RValue_makeReal((double) ctx->dataWin->gen8.defaultWindowWidth);
+    }
+    logStubbedFunction(ctx, "surface_get_width");
+    return RValue_makeReal(0.0);
+}
+
+static RValue builtinSurfaceGetHeight(VMContext* ctx, RValue* args, int32_t argCount) {
+    (void) argCount;
+    int32_t surfaceId = (int32_t) RValue_toReal(args[0]);
+    if (surfaceId == -1) {
+        return RValue_makeReal((double) ctx->dataWin->gen8.defaultWindowHeight);
+    }
+    logStubbedFunction(ctx, "surface_get_height");
+    return RValue_makeReal(0.0);
+}
 
 // Sprite stubs
 STUB_RETURN_ZERO(sprite_get_width)
@@ -1464,8 +1492,8 @@ void VMBuiltins_registerAll(void) {
     registerBuiltin("window_set_caption", builtin_window_set_caption);
     registerBuiltin("window_set_size", builtin_window_set_size);
     registerBuiltin("window_center", builtin_window_center);
-    registerBuiltin("window_get_width", builtin_window_get_width);
-    registerBuiltin("window_get_height", builtin_window_get_height);
+    registerBuiltin("window_get_width", builtinWindowGetWidth);
+    registerBuiltin("window_get_height", builtinWindowGetHeight);
 
     // Game
     registerBuiltin("game_restart", builtin_game_restart);
@@ -1526,8 +1554,8 @@ void VMBuiltins_registerAll(void) {
     registerBuiltin("surface_set_target", builtin_surface_set_target);
     registerBuiltin("surface_reset_target", builtin_surface_reset_target);
     registerBuiltin("surface_exists", builtin_surface_exists);
-    registerBuiltin("surface_get_width", builtin_surface_get_width);
-    registerBuiltin("surface_get_height", builtin_surface_get_height);
+    registerBuiltin("surface_get_width", builtinSurfaceGetWidth);
+    registerBuiltin("surface_get_height", builtinSurfaceGetHeight);
 
     // Sprite info
     registerBuiltin("sprite_get_width", builtin_sprite_get_width);
