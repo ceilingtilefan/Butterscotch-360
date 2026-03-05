@@ -22,6 +22,7 @@ Instance* Instance_create(uint32_t instanceId, int32_t objectIndex, double x, do
     inst->solid = false;
     inst->active = true;
     inst->visible = true;
+    inst->outsideRoom = false;
     inst->spriteIndex = -1;
     inst->imageSpeed = 1.0;
     inst->imageIndex = 0.0;

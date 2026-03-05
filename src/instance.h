@@ -11,7 +11,7 @@ typedef struct Instance {
     double x, y;
     double xprevious, yprevious;
     double xstart, ystart;
-    bool persistent, solid, active, visible, createEventFired;
+    bool persistent, solid, active, visible, createEventFired, outsideRoom;
     int32_t maskIndex; // collision mask sprite override (-1 = use spriteIndex)
 
     // Per-instance self variable storage

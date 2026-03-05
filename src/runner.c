@@ -147,6 +147,7 @@ static const char* getEventName(int32_t eventType, int32_t eventSubtype) {
         case EVENT_KEYBOARD:   return "Keyboard";
         case EVENT_OTHER:
             switch (eventSubtype) {
+                case OTHER_OUTSIDE_ROOM:    return "OutsideRoom";
                 case OTHER_GAME_START:      return "GameStart";
                 case OTHER_ROOM_START:      return "RoomStart";
                 case OTHER_ROOM_END:        return "RoomEnd";
@@ -772,6 +773,39 @@ static void updateViews(Runner* runner) {
     }
 }
 
+static void dispatchOutsideRoomEvents(Runner* runner) {
+    DataWin* dataWin = runner->dataWin;
+    int32_t roomWidth = (int32_t) runner->currentRoom->width;
+    int32_t roomHeight = (int32_t) runner->currentRoom->height;
+    int32_t count = (int32_t) arrlen(runner->instances);
+
+    repeat(count, i) {
+        Instance* inst = runner->instances[i];
+        if (!inst->active) continue;
+
+        // Early-out: skip instances whose object has no Outside Room event
+        if (0 > findEventCodeIdAndOwner(dataWin, inst->objectIndex, EVENT_OTHER, OTHER_OUTSIDE_ROOM, nullptr)) continue;
+
+        // Compute bounding box
+        bool outside;
+        InstanceBBox bbox = Collision_computeBBox(dataWin, inst);
+        if (bbox.valid) {
+            outside = (0 > bbox.right || bbox.left > roomWidth || 0 > bbox.bottom || bbox.top > roomHeight);
+        } else {
+            // No sprite/mask: use raw position as a point
+            outside = (0 > inst->x || inst->x > roomWidth || 0 > inst->y || inst->y > roomHeight);
+        }
+
+        // Fire event only on inside-to-outside transition (edge-triggered)
+        if (outside && !inst->outsideRoom) {
+            Runner_executeEvent(runner, inst, EVENT_OTHER, OTHER_OUTSIDE_ROOM);
+            if (runner->pendingRoom >= 0) break;
+        }
+
+        inst->outsideRoom = outside;
+    }
+}
+
 void Runner_step(Runner* runner) {
     // Save xprevious/yprevious for all active instances
     int32_t prevCount = (int32_t) arrlen(runner->instances);
@@ -869,6 +903,9 @@ void Runner_step(Runner* runner) {
             inst->y += inst->vspeed;
         }
     }
+
+    // Dispatch outside room events
+    dispatchOutsideRoomEvents(runner);
 
     // Dispatch collision events
     dispatchCollisionEvents(runner);

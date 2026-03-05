@@ -34,6 +34,7 @@
 #define DRAW_POST      77
 
 // ===[ Other Sub-event Constants ]===
+#define OTHER_OUTSIDE_ROOM 0
 #define OTHER_GAME_START 2
 #define OTHER_ROOM_START 4
 #define OTHER_ROOM_END   5
