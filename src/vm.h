@@ -95,8 +95,6 @@ typedef struct CallFrame {
 
 // ===[ EnvFrame - Saved context for with-statement (PushEnv/PopEnv) ]===
 typedef struct EnvFrame {
-    RValue* savedSelfVars;
-    uint32_t savedSelfVarCount;
     struct Instance* savedInstance;
     struct Instance** instanceList; // stb_ds array of matching instances (nullptr for single-instance)
     int32_t currentIndex;           // Current position in instanceList
@@ -126,8 +124,6 @@ typedef struct VMContext {
     uint32_t localVarCount;
     RValue* globalVars;
     uint32_t globalVarCount;
-    RValue* selfVars;
-    uint32_t selfVarCount;
     int32_t selfId;
     int32_t otherId;
     struct Instance* currentInstance;

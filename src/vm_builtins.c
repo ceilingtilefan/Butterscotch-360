@@ -1633,8 +1633,8 @@ static RValue builtinInstanceCreate(VMContext* ctx, RValue* args, int32_t argCou
     }
     Instance* callerInst = (Instance*) ctx->currentInstance;
     Instance* inst = Runner_createInstance(runner, x, y, objectIndex);
-    if (callerInst != nullptr && ctx->creatorVarID >= 0 && inst->selfVarCount > (uint32_t) ctx->creatorVarID) {
-        inst->selfVars[ctx->creatorVarID] = RValue_makeReal((double) callerInst->instanceId);
+    if (callerInst != nullptr && ctx->creatorVarID >= 0) {
+        Instance_setSelfVar(inst, ctx->creatorVarID, RValue_makeReal((double) callerInst->instanceId));
     }
     return RValue_makeReal((double) inst->instanceId);
 }
@@ -1789,8 +1789,8 @@ static RValue builtinActionCreateObject(VMContext* ctx, RValue* args, int32_t ar
         y += callerInst->y;
     }
     Instance* inst = Runner_createInstance(runner, x, y, objectIndex);
-    if (callerInst != nullptr && ctx->creatorVarID >= 0 && inst->selfVarCount > (uint32_t) ctx->creatorVarID) {
-        inst->selfVars[ctx->creatorVarID] = RValue_makeReal((double) callerInst->instanceId);
+    if (callerInst != nullptr && ctx->creatorVarID >= 0) {
+        Instance_setSelfVar(inst, ctx->creatorVarID, RValue_makeReal((double) callerInst->instanceId));
     }
     return RValue_makeUndefined();
 }

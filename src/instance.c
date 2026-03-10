@@ -7,7 +7,7 @@
 #include "stb_ds.h"
 #include "utils.h"
 
-Instance* Instance_create(uint32_t instanceId, int32_t objectIndex, double x, double y, uint32_t selfVarCount) {
+Instance* Instance_create(uint32_t instanceId, int32_t objectIndex, double x, double y) {
     Instance* inst = safeCalloc(1, sizeof(Instance));
     inst->instanceId = instanceId;
     inst->objectIndex = objectIndex;
@@ -41,6 +41,7 @@ Instance* Instance_create(uint32_t instanceId, int32_t objectIndex, double x, do
     inst->gravityDirection = 270.0;
     inst->pathIndex = -1;
     inst->pathScale = 1.0;
+    inst->selfVars = nullptr;
     inst->selfArrayMap = nullptr;
     inst->selfArrayVarTracker = nullptr;
 
@@ -49,33 +50,20 @@ Instance* Instance_create(uint32_t instanceId, int32_t objectIndex, double x, do
         inst->alarm[i] = -1;
     }
 
-    // Allocate self vars
-    inst->selfVarCount = selfVarCount;
-    if (selfVarCount > 0) {
-        inst->selfVars = safeCalloc(selfVarCount, sizeof(RValue));
-        for (uint32_t i = 0; selfVarCount > i; i++) {
-            inst->selfVars[i].type = RVALUE_UNDEFINED;
-        }
-    } else {
-        inst->selfVars = nullptr;
-    }
-
     return inst;
 }
 
 void Instance_free(Instance* instance) {
     if (instance == nullptr) return;
 
-    // Free owned strings in selfVars
-    if (instance->selfVars != nullptr) {
-        for (uint32_t i = 0; instance->selfVarCount > i; i++) {
-            RValue_free(&instance->selfVars[i]);
-        }
-        free(instance->selfVars);
+    // Free owned strings in selfVars hashmap
+    repeat(hmlen(instance->selfVars), i) {
+        RValue_free(&instance->selfVars[i].value);
     }
+    hmfree(instance->selfVars);
 
     // Free selfArrayMap
-    for (ptrdiff_t i = 0; hmlen(instance->selfArrayMap) > i; i++) {
+    repeat(hmlen(instance->selfArrayMap), i) {
         RValue_free(&instance->selfArrayMap[i].value);
     }
     hmfree(instance->selfArrayMap);

@@ -246,6 +246,22 @@ static int32_t resolveArrayAlias(RValue* vars, uint32_t varCount, int32_t varID)
     return current;
 }
 
+// Hashmap version of resolveArrayAlias for sparse self vars (SelfVarEntry* hashmap).
+static int32_t resolveArrayAliasHm(SelfVarEntry* vars, int32_t varID) {
+    int32_t current = varID;
+    int hops = 0;
+    while (true) {
+        ptrdiff_t idx = hmgeti(vars, current);
+        if (0 > idx || vars[idx].value.type != RVALUE_ARRAY_REF) break;
+        current = vars[idx].value.int32;
+        if (++hops >= MAX_ARRAY_ALIAS_HOPS) {
+            fprintf(stderr, "VM: resolveArrayAliasHm exceeded %d hops starting from varID %d (circular alias chain?)\n", MAX_ARRAY_ALIAS_HOPS, varID);
+            abort();
+        }
+    }
+    return current;
+}
+
 // ===[ Trace Helpers ]===
 
 /**
@@ -446,7 +462,7 @@ static RValue resolveVariableRead(VMContext* ctx, int32_t instanceType, uint32_t
             default: {
                 Instance* inst = targetInstance;
                 if (inst != nullptr) {
-                    int32_t resolvedVarID = resolveArrayAlias(inst->selfVars, inst->selfVarCount, varDef->varID);
+                    int32_t resolvedVarID = resolveArrayAliasHm(inst->selfVars, varDef->varID);
                     RValue result = arrayMapGet(inst->selfArrayMap, resolvedVarID, access.arrayIndex);
                     if (shouldTraceVariable(ctx->varReadsToBeTraced, ctx->dataWin->objt.objects[inst->objectIndex].name, "self", varDef->name)) {
                         char* rvalueAsString = RValue_toStringTyped(result);
@@ -486,24 +502,15 @@ static RValue resolveVariableRead(VMContext* ctx, int32_t instanceType, uint32_t
             }
             break;
         case INSTANCE_SELF:
-            require(ctx->selfVarCount > (uint32_t) varDef->varID);
-            if (targetInstance != nullptr && targetInstance->selfVars[varDef->varID].type == RVALUE_ARRAY_REF) {
-                result = targetInstance->selfVars[varDef->varID];
-            } else if (targetInstance != nullptr && hmgeti(targetInstance->selfArrayVarTracker, varDef->varID) >= 0) {
-                result = RValue_makeArrayRef(varDef->varID);
-            } else {
-                result = ctx->selfVars[varDef->varID];
-            }
-            break;
         default: {
-            // Positive instanceType (object reference) - use target instance's selfVars
-            require(targetInstance->selfVarCount > (uint32_t) varDef->varID);
-            if (targetInstance->selfVars[varDef->varID].type == RVALUE_ARRAY_REF) {
-                result = targetInstance->selfVars[varDef->varID];
+            // Use target instance's sparse selfVars hashmap
+            RValue selfVal = Instance_getSelfVar(targetInstance, varDef->varID);
+            if (selfVal.type == RVALUE_ARRAY_REF) {
+                result = selfVal;
             } else if (hmgeti(targetInstance->selfArrayVarTracker, varDef->varID) >= 0) {
                 result = RValue_makeArrayRef(varDef->varID);
             } else {
-                result = targetInstance->selfVars[varDef->varID];
+                result = selfVal;
             }
             break;
         }
@@ -543,7 +550,7 @@ static void writeSingleInstanceVariable(VMContext* ctx, Instance* inst, Variable
 
     // Array write
     if (access->isArray) {
-        int32_t resolvedVarID = resolveArrayAlias(inst->selfVars, inst->selfVarCount, varDef->varID);
+        int32_t resolvedVarID = resolveArrayAliasHm(inst->selfVars, varDef->varID);
         RValue valCopy = (val.type == RVALUE_STRING && val.string != nullptr) ? RValue_makeOwnedString(strdup(val.string)) : val;
         arrayMapSet(&inst->selfArrayMap, resolvedVarID, access->arrayIndex, valCopy);
         hmput(inst->selfArrayVarTracker, resolvedVarID, 1);
@@ -551,14 +558,7 @@ static void writeSingleInstanceVariable(VMContext* ctx, Instance* inst, Variable
     }
 
     // Scalar write
-    require(inst->selfVarCount > (uint32_t) varDef->varID);
-    RValue* dest = &inst->selfVars[varDef->varID];
-    RValue_free(dest);
-    if (val.type == RVALUE_STRING && val.string != nullptr) {
-        *dest = RValue_makeOwnedString(strdup(val.string));
-    } else {
-        *dest = val;
-    }
+    Instance_setSelfVar(inst, varDef->varID, val);
 }
 
 static void resolveVariableWrite(VMContext* ctx, int32_t instanceType, uint32_t varRef, RValue val) {
@@ -679,7 +679,7 @@ static void resolveVariableWrite(VMContext* ctx, int32_t instanceType, uint32_t 
             default: {
                 Instance* inst = targetInstance;
                 if (inst != nullptr) {
-                    int32_t resolvedVarID = resolveArrayAlias(inst->selfVars, inst->selfVarCount, varDef->varID);
+                    int32_t resolvedVarID = resolveArrayAliasHm(inst->selfVars, varDef->varID);
                     arrayMapSet(&inst->selfArrayMap, resolvedVarID, access.arrayIndex, val);
                     hmput(inst->selfArrayVarTracker, resolvedVarID, 1);
                     if (shouldTraceVariable(ctx->varWritesToBeTraced, ctx->dataWin->objt.objects[inst->objectIndex].name, "self", varDef->name)) {
@@ -706,54 +706,51 @@ static void resolveVariableWrite(VMContext* ctx, int32_t instanceType, uint32_t 
     bool shouldLogGlobal = false;
     bool shouldLogInstance = false;
 
-    RValue* dest;
     switch (instanceType) {
-        case INSTANCE_LOCAL:
+        case INSTANCE_LOCAL: {
             require(ctx->localVarCount > (uint32_t) varDef->varID);
-            dest = &ctx->localVars[varDef->varID];
-            break;
-        case INSTANCE_GLOBAL:
+            RValue* dest = &ctx->localVars[varDef->varID];
+            RValue_free(dest);
+            if (val.type == RVALUE_STRING && !val.ownsString && val.string != nullptr) {
+                *dest = RValue_makeOwnedString(strdup(val.string));
+            } else {
+                *dest = val;
+            }
+            return;
+        }
+        case INSTANCE_GLOBAL: {
             require(ctx->globalVarCount > (uint32_t) varDef->varID);
             shouldLogGlobal = shouldTraceVariable(ctx->varWritesToBeTraced, "global", nullptr, varDef->name);
-            dest = &ctx->globalVars[varDef->varID];
-            break;
-        case INSTANCE_SELF:
-            require(ctx->selfVarCount > (uint32_t) varDef->varID);
-            shouldLogInstance = shouldTraceVariable(ctx->varWritesToBeTraced, ctx->dataWin->objt.objects[ctx->currentInstance->objectIndex].name, "self", varDef->name);
-            dest = &ctx->selfVars[varDef->varID];
-            break;
-        default: {
-            // Positive instanceType (object reference) - use target instance's selfVars
-            require(targetInstance->selfVarCount > (uint32_t) varDef->varID);
-            shouldLogInstance = shouldTraceVariable(ctx->varWritesToBeTraced, ctx->dataWin->objt.objects[targetInstance->objectIndex].name, "self", varDef->name);
-            dest = &targetInstance->selfVars[varDef->varID];
-            break;
+            RValue* dest = &ctx->globalVars[varDef->varID];
+            RValue_free(dest);
+            if (val.type == RVALUE_STRING && !val.ownsString && val.string != nullptr) {
+                *dest = RValue_makeOwnedString(strdup(val.string));
+            } else {
+                *dest = val;
+            }
+            if (shouldLogGlobal) {
+                char* rvalueAsString = RValue_toStringTyped(*dest);
+                fprintf(stderr, "VM: [%s] WRITE global.%s = %s\n", ctx->currentCodeName, varDef->name, rvalueAsString);
+                free(rvalueAsString);
+            }
+            return;
         }
-    }
-
-    // Free old value if it owns a string
-    RValue_free(dest);
-
-    // If storing a non-owning string reference, make an owning copy
-    // so the variable won't dangle when the source (e.g. a local var or stack value) is freed
-    if (val.type == RVALUE_STRING && !val.ownsString && val.string != nullptr) {
-        *dest = RValue_makeOwnedString(strdup(val.string));
-    } else {
-        *dest = val;
-    }
-
-    if (shouldLogGlobal) {
-        char* rvalueAsString = RValue_toStringTyped(*dest);
-        fprintf(stderr, "VM: [%s] WRITE global.%s = %s\n", ctx->currentCodeName, varDef->name, rvalueAsString);
-        free(rvalueAsString);
-    }
-
-    if (shouldLogInstance) {
-        Instance* inst = targetInstance;
-        char* rvalueAsString = RValue_toStringTyped(*dest);
-        GameObject* obj = &ctx->dataWin->objt.objects[inst->objectIndex];
-        fprintf(stderr, "VM: [%s] WRITE %s.%s = %s (instanceId=%d)\n", ctx->currentCodeName, obj->name, varDef->name, rvalueAsString, inst->instanceId);
-        free(rvalueAsString);
+        case INSTANCE_SELF:
+        default: {
+            // Self or object/instance reference - use sparse hashmap
+            Instance* inst = targetInstance;
+            shouldLogInstance = shouldTraceVariable(ctx->varWritesToBeTraced, ctx->dataWin->objt.objects[inst->objectIndex].name, "self", varDef->name);
+            Instance_setSelfVar(inst, varDef->varID, val);
+            if (shouldLogInstance) {
+                RValue written = Instance_getSelfVar(inst, varDef->varID);
+                char* rvalueAsString = RValue_toStringTyped(written);
+                GameObject* obj = &ctx->dataWin->objt.objects[inst->objectIndex];
+                fprintf(stderr, "VM: [%s] WRITE %s.%s = %s (instanceId=%d)\n", ctx->currentCodeName, obj->name, varDef->name, rvalueAsString, inst->instanceId);
+                free(rvalueAsString);
+            }
+            // val ownership transferred to Instance_setSelfVar, don't free here
+            return;
+        }
     }
 }
 
@@ -1022,7 +1019,7 @@ static void handlePop(VMContext* ctx, uint32_t instr, const uint8_t* extraData) 
                         }
                     }
                     if (inst != nullptr) {
-                        int32_t resolvedVarID = resolveArrayAlias(inst->selfVars, inst->selfVarCount, varDef->varID);
+                        int32_t resolvedVarID = resolveArrayAliasHm(inst->selfVars, varDef->varID);
                         arrayMapSet(&inst->selfArrayMap, resolvedVarID, arrayIndex, val);
                         hmput(inst->selfArrayVarTracker, resolvedVarID, 1);
                         if (shouldTraceVariable(ctx->varWritesToBeTraced, ctx->dataWin->objt.objects[inst->objectIndex].name, "self", varDef->name)) {
@@ -1537,17 +1534,13 @@ bool VM_isObjectOrDescendant(DataWin* dataWin, int32_t objectIndex, int32_t targ
 }
 
 
-// Sets the VM instance context (selfVars, selfVarCount, currentInstance) from an Instance.
+// Sets the VM instance context from an Instance.
 static void switchToInstance(VMContext* ctx, Instance* inst) {
-    ctx->selfVars = inst->selfVars;
-    ctx->selfVarCount = inst->selfVarCount;
     ctx->currentInstance = inst;
 }
 
 // Restores VM context from an EnvFrame's saved fields.
 static void restoreEnvContext(VMContext* ctx, EnvFrame* frame) {
-    ctx->selfVars = frame->savedSelfVars;
-    ctx->selfVarCount = frame->savedSelfVarCount;
     ctx->currentInstance = frame->savedInstance;
 }
 
@@ -1561,8 +1554,6 @@ static void handlePushEnv(VMContext* ctx, uint32_t instr, uint32_t instrAddr) {
 
     // Create env frame, save current context
     EnvFrame* frame = safeMalloc(sizeof(EnvFrame));
-    frame->savedSelfVars = ctx->selfVars;
-    frame->savedSelfVarCount = ctx->selfVarCount;
     frame->savedInstance = (Instance*) ctx->currentInstance;
     frame->instanceList = nullptr;
     frame->currentIndex = 0;
@@ -1890,16 +1881,13 @@ VMContext* VM_create(DataWin* dataWin) {
     // Build reference lookup maps (file buffer stays read-only)
     patchReferenceOperands(ctx);
 
-    // Scan VARI entries to find max varID for each scope
+    // Scan VARI entries to find max varID for global scope
     // Built-in variables have varID == -6 (sentinel), skip those
     uint32_t maxGlobalVarID = 0;
-    uint32_t maxSelfVarID = 0;
     forEach(Variable, v, dataWin->vari.variables, dataWin->vari.variableCount) {
         if (0 > v->varID) continue;
         if (v->instanceType == INSTANCE_GLOBAL) {
             if ((uint32_t) v->varID + 1 > maxGlobalVarID) maxGlobalVarID = (uint32_t) v->varID + 1;
-        } else if (v->instanceType == INSTANCE_SELF) {
-            if ((uint32_t) v->varID + 1 > maxSelfVarID) maxSelfVarID = (uint32_t) v->varID + 1;
         }
     }
 
@@ -1907,12 +1895,6 @@ VMContext* VM_create(DataWin* dataWin) {
     ctx->globalVars = safeCalloc(maxGlobalVarID, sizeof(RValue));
     repeat(maxGlobalVarID, i) {
         ctx->globalVars[i].type = RVALUE_UNDEFINED;
-    }
-
-    ctx->selfVarCount = maxSelfVarID;
-    ctx->selfVars = safeCalloc(maxSelfVarID, sizeof(RValue));
-    repeat(maxSelfVarID, i) {
-        ctx->selfVars[i].type = RVALUE_UNDEFINED;
     }
 
     ctx->globalArrayMap = nullptr;
@@ -1966,7 +1948,7 @@ VMContext* VM_create(DataWin* dataWin) {
     // Register built-in functions
     VMBuiltins_registerAll();
 
-    fprintf(stderr, "VM: Initialized with %u global vars, %u self vars, %u functions mapped\n", ctx->globalVarCount, ctx->selfVarCount, (uint32_t) shlen(ctx->funcMap));
+    fprintf(stderr, "VM: Initialized with %u global vars, sparse self vars (hashmap), %u functions mapped\n", ctx->globalVarCount, (uint32_t) shlen(ctx->funcMap));
 
     return ctx;
 }
@@ -2642,14 +2624,6 @@ void VM_free(VMContext* ctx) {
             RValue_free(&ctx->globalVars[i]);
         }
         free(ctx->globalVars);
-    }
-
-    // Free self vars
-    if (ctx->selfVars != nullptr) {
-        repeat(ctx->selfVarCount, i) {
-            RValue_free(&ctx->selfVars[i]);
-        }
-        free(ctx->selfVars);
     }
 
     // Free array maps

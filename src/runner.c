@@ -50,14 +50,10 @@ static int32_t findEventCodeIdAndOwner(DataWin* dataWin, int32_t objectIndex, in
 // ===[ Event Execution ]===
 
 static void setVMInstanceContext(VMContext* vm, Instance* instance) {
-    vm->selfVars = instance->selfVars;
-    vm->selfVarCount = instance->selfVarCount;
     vm->currentInstance = instance;
 }
 
-static void restoreVMInstanceContext(VMContext* vm, RValue* savedSelfVars, uint32_t savedSelfVarCount, Instance* savedInstance) {
-    vm->selfVars = savedSelfVars;
-    vm->selfVarCount = savedSelfVarCount;
+static void restoreVMInstanceContext(VMContext* vm, Instance* savedInstance) {
     vm->currentInstance = savedInstance;
 }
 
@@ -68,8 +64,6 @@ static void executeCode(Runner* runner, Instance* instance, int32_t codeId) {
     VMContext* vm = runner->vmContext;
 
     // Save instance context
-    RValue* savedSelfVars = vm->selfVars;
-    uint32_t savedSelfVarCount = vm->selfVarCount;
     Instance* savedInstance = (Instance*) vm->currentInstance;
 
     // Save full VM execution state, because VM_executeCode overwrites all of these.
@@ -100,7 +94,7 @@ static void executeCode(Runner* runner, Instance* instance, int32_t codeId) {
     RValue_free(&result);
 
     // Restore instance context
-    restoreVMInstanceContext(vm, savedSelfVars, savedSelfVarCount, savedInstance);
+    restoreVMInstanceContext(vm, savedInstance);
 
     // Restore VM execution state
     vm->bytecodeBase = savedBytecodeBase;
@@ -429,9 +423,8 @@ static Instance* createAndInitInstance(Runner* runner, int32_t instanceId, int32
     require(objectIndex >= 0 && dataWin->objt.count > (uint32_t) objectIndex);
 
     GameObject* objDef = &dataWin->objt.objects[objectIndex];
-    uint32_t selfVarCount = runner->vmContext->selfVarCount;
 
-    Instance* inst = Instance_create(instanceId, objectIndex, x, y, selfVarCount);
+    Instance* inst = Instance_create(instanceId, objectIndex, x, y);
 
     // Copy properties from object definition
     inst->spriteIndex = objDef->spriteId;
@@ -1252,18 +1245,26 @@ void Runner_dumpState(Runner* runner) {
         }
         if (hasAlarm) printf("\n");
 
-        // Self variables (non-array)
+        // Self variables (non-array, sparse hashmap)
         bool hasSelfVars = false;
-        repeat(dataWin->vari.variableCount, varIdx) {
-            Variable* var = &dataWin->vari.variables[varIdx];
-            if (var->instanceType != INSTANCE_SELF || var->varID < 0) continue;
-            if ((uint32_t) var->varID >= inst->selfVarCount) continue;
-            RValue val = inst->selfVars[var->varID];
+        repeat(hmlen(inst->selfVars), svIdx) {
+            int32_t varID = inst->selfVars[svIdx].key;
+            RValue val = inst->selfVars[svIdx].value;
             if (val.type == RVALUE_UNDEFINED) continue;
+
+            // Resolve variable name from VARI chunk
+            const char* varName = "?";
+            repeat(dataWin->vari.variableCount, varIdx) {
+                Variable* var = &dataWin->vari.variables[varIdx];
+                if (var->instanceType == INSTANCE_SELF && var->varID == varID) {
+                    varName = var->name;
+                    break;
+                }
+            }
 
             if (!hasSelfVars) { printf("  Self Variables:\n"); hasSelfVars = true; }
             char* valStr = RValue_toStringFancy(val);
-            printf("    %s = %s\n", var->name, valStr);
+            printf("    %s = %s\n", varName, valStr);
             free(valStr);
         }
 
@@ -1457,17 +1458,25 @@ char* Runner_dumpStateJson(Runner* runner) {
         }
         JsonWriter_endObject(&w);
 
-        // Self variables (non-array)
+        // Self variables (non-array, sparse hashmap)
         JsonWriter_key(&w, "selfVariables");
         JsonWriter_beginObject(&w);
-        repeat(dataWin->vari.variableCount, varIdx) {
-            Variable* var = &dataWin->vari.variables[varIdx];
-            if (var->instanceType != INSTANCE_SELF || var->varID < 0) continue;
-            if ((uint32_t) var->varID >= inst->selfVarCount) continue;
-            RValue val = inst->selfVars[var->varID];
+        repeat(hmlen(inst->selfVars), svIdx) {
+            int32_t varID = inst->selfVars[svIdx].key;
+            RValue val = inst->selfVars[svIdx].value;
             if (val.type == RVALUE_UNDEFINED) continue;
 
-            JsonWriter_key(&w, var->name);
+            // Resolve variable name from VARI chunk
+            const char* varName = "?";
+            repeat(dataWin->vari.variableCount, varIdx) {
+                Variable* var = &dataWin->vari.variables[varIdx];
+                if (var->instanceType == INSTANCE_SELF && var->varID == varID) {
+                    varName = var->name;
+                    break;
+                }
+            }
+
+            JsonWriter_key(&w, varName);
             writeRValueJson(&w, val);
         }
         JsonWriter_endObject(&w);
