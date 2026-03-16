@@ -45,7 +45,7 @@ static const PadMapping PAD_MAPPINGS[] = {
     { PAD_LEFT,     VK_LEFT },
     { PAD_RIGHT,    VK_RIGHT },
     { PAD_CROSS,    'Z' },
-    { PAD_CIRCLE,   'X' },
+    { PAD_SQUARE,   'X' },
     { PAD_START,    'C' },
     { PAD_TRIANGLE, VK_ESCAPE },
     { PAD_L1, VK_PAGEDOWN },
