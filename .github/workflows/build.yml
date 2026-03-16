@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-glfw:
+    name: Build (GLFW)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake libglfw3-dev
+
+      - name: Configure
+        run: cmake -B build -DPLATFORM=glfw -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: butterscotch-glfw-linux
+          path: build/butterscotch
+
+  build-ps2:
+    name: Build (PS2)
+    runs-on: ubuntu-latest
+    container:
+      image: ps2dev/ps2dev:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: apk add --no-cache cmake make gmp-dev mpfr-dev mpc1-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DPLATFORM=ps2 -DUSE_FLOAT_REALS=OFF
+
+      - name: Build
+        run: |
+          cmake --build build -j$(nproc)
+          cp build/butterscotch build/butterscotch.elf
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: butterscotch-ps2
+          path: build/butterscotch.elf
