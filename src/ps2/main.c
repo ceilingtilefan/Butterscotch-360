@@ -352,9 +352,6 @@ int main(int argc, char* argv[]) {
     // ===[ Create texture cache and renderer ]===
     drawStatusScreen(gsGlobal, gsFontM, dataWin->gen8.displayName, "Creating renderer...", &loadingState);
 
-    // Save VRAM pointer after FONTM upload so the texture cache starts after it
-    uint32_t vramBase = gsGlobal->CurrentPointer;
-
     Renderer* renderer = GsRenderer_create(gsGlobal);
 
     drawStatusScreen(gsGlobal, gsFontM, dataWin->gen8.displayName, "Creating VM and runner...", &loadingState);
