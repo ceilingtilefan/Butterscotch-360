@@ -2515,7 +2515,9 @@ static RValue builtinInstanceDeactivateAll(VMContext* ctx, RValue* args, int32_t
 static RValue builtinInstanceActivateAll([[maybe_unused]] VMContext* ctx, [[maybe_unused]] RValue* args, [[maybe_unused]] int32_t argCount) {
     int instances = arrlen(ctx->runner->instances);
     repeat(instances, i) {
-        ctx->runner->instances[i]->active = true;
+        Instance* instance = ctx->runner->instances[i];
+        if (!instance->destroyed)
+            ctx->runner->instances[i]->active = true;
     }
     return RValue_makeUndefined();
 }
@@ -2527,7 +2529,7 @@ static RValue builtinInstanceActivateObject(VMContext* ctx, RValue* args, int32_
     int instances = arrlen(ctx->runner->instances);
     repeat(instances, i) {
         Instance* instance = ctx->runner->instances[i];
-        if (!instance->active && VM_isObjectOrDescendant(ctx->dataWin, instance->objectIndex, objIndex)) {
+        if (!instance->active && !instance->destroyed && VM_isObjectOrDescendant(ctx->dataWin, instance->objectIndex, objIndex)) {
             instance->active = true;
         }
     }

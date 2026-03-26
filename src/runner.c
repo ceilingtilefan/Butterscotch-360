@@ -649,11 +649,13 @@ Instance* Runner_createInstance(Runner* runner, GMLReal x, GMLReal y, int32_t ob
     return inst;
 }
 
-void Runner_destroyInstance(Runner* runner, Instance* inst) {
-    (void) runner;
+void Runner_destroyInstance([[maybe_unused]] Runner* runner, Instance* inst) {
     GameObject* gameObject = &runner->dataWin->objt.objects[inst->objectIndex];
     Runner_executeEvent(runner, inst, EVENT_DESTROY, 0);
+    // A destroyed instance must ALWAYS be not active
+    // If a destroyed instance is active, then well, something went VERY wrong
     inst->active = false;
+    inst->destroyed = true;
 
     if (shgeti(runner->vmContext->instanceLifecyclesToBeTraced, "*") != -1 || shgeti(runner->vmContext->instanceLifecyclesToBeTraced, gameObject->name) != -1) {
         fprintf(stderr, "VM: Instance %s (%d) destroyed\n", gameObject->name, inst->instanceId);
@@ -665,7 +667,7 @@ void Runner_cleanupDestroyedInstances(Runner* runner) {
     int32_t writeIdx = 0;
     repeat(count, i) {
         Instance* inst = runner->instances[i];
-        if (inst->active) {
+        if (!inst->destroyed) {
             runner->instances[writeIdx++] = inst;
         } else {
             Instance_free(inst);
