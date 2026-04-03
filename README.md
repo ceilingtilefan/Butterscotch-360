@@ -20,6 +20,13 @@ Deltarune (SURVEY_PROGRAM):
 
 Doesn't boot at all
 
+## how to use:
+1. create a new folder for butterscotchm and save Butterscotch.xex
+2. copy data.win (and .ogg files if you want more audio) to the folder you created earlier
+3. launch Butterscotch.xex (using xexmenu, aurora, freestyle dash, etc)
+
+# original readme:
+
 <!-- Badges, about the GitHub repository itself -->
 <p align="center">
 <a href="https://discord.gg/2gQR7t3WJR"><img src="https://img.shields.io/discord/1406856655920168971?color=5865F2&logo=discord&logoColor=white&label=discord"></a>
