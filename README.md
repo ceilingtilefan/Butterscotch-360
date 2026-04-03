@@ -1,4 +1,17 @@
-<h1 align="center">🥧 Butterscotch 🥧</h1>
+<h1 align="center">🥧 Butterscotch 🥧 (Xbox 360 Port)</h1>
+
+# note: this xbox 360 port was made entirely with claude code as a proof of concept. there are issues with this port that likely don't exist on the original ps2 port.
+
+##issues:
+(Undertale)
+some audio is sped up
+not optimized for 4:3 properly
+some slowdowns
+undyne's spears don't point at you
+(likely more)
+
+Deltarune (SURVEY_PROGRAM):
+Doesn't boot at all
 
 <!-- Badges, about the GitHub repository itself -->
 <p align="center">
