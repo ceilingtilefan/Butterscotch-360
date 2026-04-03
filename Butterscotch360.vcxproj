@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<ItemGroup Label="ProjectConfigurations">
+<ProjectConfiguration Include="Debug|Xbox 360">
+<Configuration>Debug</Configuration>
+<Platform>Xbox 360</Platform>
+</ProjectConfiguration>
+<ProjectConfiguration Include="Release|Xbox 360">
+<Configuration>Release</Configuration>
+<Platform>Xbox 360</Platform>
+</ProjectConfiguration>
+</ItemGroup>
+<PropertyGroup Label="Globals">
+<ProjectName>Butterscotch</ProjectName>
+<ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+<RootNamespace>Butterscotch</RootNamespace>
+<Keyword>Win32Proj</Keyword>
+</PropertyGroup>
+<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'" Label="Configuration">
+<ConfigurationType>Application</ConfigurationType>
+<CharacterSet>MultiByte</CharacterSet>
+<UseOfAtl>false</UseOfAtl>
+</PropertyGroup>
+<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'" Label="Configuration">
+<ConfigurationType>Application</ConfigurationType>
+<CharacterSet>MultiByte</CharacterSet>
+<UseOfAtl>false</UseOfAtl>
+</PropertyGroup>
+<Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+<ImportGroup Label="ExtensionSettings" />
+<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'" Label="PropertySheets">
+<Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+</ImportGroup>
+<ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'" Label="PropertySheets">
+<Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+</ImportGroup>
+<PropertyGroup Label="UserMacros" />
+<PropertyGroup>
+<_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+<OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">$(SolutionDir)build-xbox360-xdk\Debug\</OutDir>
+<IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">$(SolutionDir)build-xbox360-xdk\Debug\obj\</IntDir>
+<LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">true</LinkIncremental>
+<RemoteRoot Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">xe:\Butterscotch</RemoteRoot>
+<OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'">$(SolutionDir)build-xbox360-xdk\Release\</OutDir>
+<IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'">$(SolutionDir)build-xbox360-xdk\Release\obj\</IntDir>
+<RemoteRoot Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'">xe:\Butterscotch</RemoteRoot>
+</PropertyGroup>
+<!-- ===[ Debug Configuration ]=== -->
+<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">
+<ClCompile>
+<WarningLevel>Level3</WarningLevel>
+<Optimization>Disabled</Optimization>
+<RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+<ExceptionHandling>false</ExceptionHandling>
+<RuntimeTypeInfo>false</RuntimeTypeInfo>
+<BufferSecurityCheck>false</BufferSecurityCheck>
+<IntrinsicFunctions>true</IntrinsicFunctions>
+<ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
+<PreprocessorDefinitions>_DEBUG;_XBOX;XBOX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+<AdditionalIncludeDirectories>src;src\xbox360-xdk;vendor\stb\ds;vendor\stb\image;vendor\stb\vorbis;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+<AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+<ForcedIncludeFiles>compat_msvc.h</ForcedIncludeFiles>
+<CompileAs>CompileAsCpp</CompileAs>
+</ClCompile>
+<Link>
+<AdditionalDependencies>d3d9d.lib;d3dx9d.lib;xgraphicsd.lib;xapilibd.lib;xaudiod2.lib;xmcored.lib;xboxkrnl.lib;xbdm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+<GenerateDebugInformation>true</GenerateDebugInformation>
+<StackReserveSize>1048576</StackReserveSize>
+</Link>
+<ImageXex>
+</ImageXex>
+<Deploy>
+<DeploymentType>EmulateDvd</DeploymentType>
+<DvdEmulationType>ZeroSeekTimes</DvdEmulationType>
+<DeploymentFiles>$(RemoteRoot)=$(ImagePath);</DeploymentFiles>
+</Deploy>
+</ItemDefinitionGroup>
+<!-- ===[ Release Configuration ]=== -->
+<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'">
+<ClCompile>
+<WarningLevel>Level3</WarningLevel>
+<Optimization>Full</Optimization>
+<FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+<RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+<ExceptionHandling>false</ExceptionHandling>
+<RuntimeTypeInfo>false</RuntimeTypeInfo>
+<BufferSecurityCheck>false</BufferSecurityCheck>
+<IntrinsicFunctions>true</IntrinsicFunctions>
+<StringPooling>true</StringPooling>
+<FunctionLevelLinking>true</FunctionLevelLinking>
+<InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+<ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
+<PreprocessorDefinitions>NDEBUG;_XBOX;XBOX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+<AdditionalIncludeDirectories>src;src\xbox360-xdk;vendor\stb\ds;vendor\stb\image;vendor\stb\vorbis;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+<AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+<ForcedIncludeFiles>compat_msvc.h</ForcedIncludeFiles>
+<CompileAs>CompileAsCpp</CompileAs>
+</ClCompile>
+<Link>
+<AdditionalDependencies>d3d9.lib;d3dx9.lib;xgraphics.lib;xapilib.lib;xaudio2.lib;xmcore.lib;xboxkrnl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+<EnableCOMDATFolding>true</EnableCOMDATFolding>
+<AdditionalOptions>/ignore:4089 %(AdditionalOptions)</AdditionalOptions>
+</Link>
+<ImageXex>
+</ImageXex>
+<Deploy>
+<DeploymentType>EmulateDvd</DeploymentType>
+<DvdEmulationType>ZeroSeekTimes</DvdEmulationType>
+<DeploymentFiles>$(RemoteRoot)=$(ImagePath);</DeploymentFiles>
+</Deploy>
+</ItemDefinitionGroup>
+<!-- ===[ Source Files ]=== -->
+<ItemGroup>
+<!-- Core engine (C files) -->
+<ClCompile Include="src\binary_reader.c" />
+<ClCompile Include="src\data_win.c" />
+<ClCompile Include="src\data_win_print.c" />
+<ClCompile Include="src\ini.c" />
+<ClCompile Include="src\input_recording.c" />
+<ClCompile Include="src\instance.c" />
+<ClCompile Include="src\json_reader.c" />
+<ClCompile Include="src\json_writer.c" />
+<ClCompile Include="src\noop_file_system.c" />
+<ClCompile Include="src\runner.c" />
+<ClCompile Include="src\runner_keyboard.c" />
+<ClCompile Include="src\vm.c" />
+<ClCompile Include="src\vm_builtins.c" />
+<!-- stb library implementations -->
+<ClCompile Include="src\xbox360-xdk\stb_impl.c" />
+<!-- Xbox 360 XDK platform (C++ files) -->
+<ClCompile Include="src\xbox360-xdk\main.cpp" />
+<ClCompile Include="src\xbox360-xdk\d3d9_renderer.cpp" />
+<ClCompile Include="src\xbox360-xdk\xaudio2_audio.cpp" />
+<ClCompile Include="src\xbox360-xdk\xdk_file_system.cpp" />
+</ItemGroup>
+<!-- ===[ Header Files ]=== -->
+<ItemGroup>
+<ClInclude Include="src\renderer.h" />
+<ClInclude Include="src\audio_system.h" />
+<ClInclude Include="src\file_system.h" />
+<ClInclude Include="src\data_win.h" />
+<ClInclude Include="src\runner.h" />
+<ClInclude Include="src\runner_keyboard.h" />
+<ClInclude Include="src\vm.h" />
+<ClInclude Include="src\vm_builtins.h" />
+<ClInclude Include="src\utils.h" />
+<ClInclude Include="src\instance.h" />
+<ClInclude Include="src\rvalue.h" />
+<ClInclude Include="src\text_utils.h" />
+<ClInclude Include="src\collision.h" />
+<ClInclude Include="src\json_reader.h" />
+<ClInclude Include="src\json_writer.h" />
+<ClInclude Include="src\ini.h" />
+<ClInclude Include="src\real_type.h" />
+<ClInclude Include="src\xbox360-xdk\d3d9_renderer.h" />
+<ClInclude Include="src\xbox360-xdk\xaudio2_audio.h" />
+<ClInclude Include="src\xbox360-xdk\xdk_file_system.h" />
+</ItemGroup>
+<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+<ImportGroup Label="ExtensionTargets" />
+</Project>

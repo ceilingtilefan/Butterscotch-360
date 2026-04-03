@@ -1,2 +1,7 @@
-build/
+build-xbox360-xdk/
+Debug/
+Release/
 .gitignore
+.DS_Store
+Butterscotch360.suo
+Butterscotch360.vcxproj.user
