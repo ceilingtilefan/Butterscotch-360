@@ -2,7 +2,7 @@
 
 # note: this xbox 360 port was made entirely with claude code as a proof of concept. there are issues with this port that likely don't exist on the original ps2 port.
 
-##issues:
+## issues:
 (Undertale)
 some audio is sped up
 not optimized for 4:3 properly
