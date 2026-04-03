@@ -21,7 +21,7 @@ Deltarune (SURVEY_PROGRAM):
 Doesn't boot at all
 
 ## how to use:
-1. create a new folder for butterscotchm and save Butterscotch.xex
+1. create a new folder for butterscotch and save Butterscotch.xex to it
 2. copy data.win (and .ogg files if you want more audio) to the folder you created earlier
 3. launch Butterscotch.xex (using xexmenu, aurora, freestyle dash, etc)
 
