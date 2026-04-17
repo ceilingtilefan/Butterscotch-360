@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -152,7 +151,6 @@ typedef struct VMContext {
     StringBooleanEntry* loggedUnknownFuncs;
     // "codeName\tfuncName" -> true, for deduplicating stubbed function warnings
     StringBooleanEntry* loggedStubbedFuncs;
-#ifndef DISABLE_VM_TRACING
     StringBooleanEntry* varReadsToBeTraced;
     StringBooleanEntry* varWritesToBeTraced;
     StringBooleanEntry* functionCallsToBeTraced;
@@ -162,7 +160,6 @@ typedef struct VMContext {
     StringBooleanEntry* opcodesToBeTraced;
     StringBooleanEntry* stackToBeTraced;
     StringBooleanEntry* tilesToBeTraced;
-#endif
     // Current event context (set by Runner_executeEvent, -1 when not in an event)
     int32_t currentEventType;
     int32_t currentEventSubtype;

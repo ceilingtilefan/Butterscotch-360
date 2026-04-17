@@ -4,8 +4,27 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Byte-swap helpers for big-endian platforms (e.g. Xbox 360 PowerPC)
+// data.win and all Butterscotch binary formats are little-endian
+#if (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) || defined(_XBOX)
+#define NEEDS_BSWAP 1
+static inline uint16_t bswap16(uint16_t v) { return (v >> 8) | (v << 8); }
+static inline uint32_t bswap32(uint32_t v) {
+    return ((v >> 24) & 0xFF) | ((v >> 8) & 0xFF00) | ((v << 8) & 0xFF0000) | ((v << 24) & 0xFF000000);
+}
+static inline uint64_t bswap64(uint64_t v) {
+    return ((uint64_t) bswap32((uint32_t) v) << 32) | bswap32((uint32_t) (v >> 32));
+}
+#else
+#define NEEDS_BSWAP 0
+#endif
+
 BinaryReader BinaryReader_create(FILE* file, size_t fileSize) {
-    return (BinaryReader){.file = file, .fileSize = fileSize, .buffer = nullptr, .bufferBase = 0, .bufferSize = 0, .bufferPos = 0};
+    BinaryReader r;
+    memset(&r, 0, sizeof(r));
+    r.file = file;
+    r.fileSize = fileSize;
+    return r;
 }
 
 void BinaryReader_setBuffer(BinaryReader* reader, uint8_t* buffer, size_t baseOffset, size_t size) {
@@ -51,42 +70,56 @@ uint8_t BinaryReader_readUint8(BinaryReader* reader) {
 int16_t BinaryReader_readInt16(BinaryReader* reader) {
     int16_t value;
     readCheck(reader, &value, 2);
+#if NEEDS_BSWAP
+    value = (int16_t) bswap16((uint16_t) value);
+#endif
     return value;
 }
 
 uint16_t BinaryReader_readUint16(BinaryReader* reader) {
     uint16_t value;
     readCheck(reader, &value, 2);
+#if NEEDS_BSWAP
+    value = bswap16(value);
+#endif
     return value;
 }
 
 int32_t BinaryReader_readInt32(BinaryReader* reader) {
     int32_t value;
     readCheck(reader, &value, 4);
+#if NEEDS_BSWAP
+    value = (int32_t) bswap32((uint32_t) value);
+#endif
     return value;
 }
 
 uint32_t BinaryReader_readUint32(BinaryReader* reader) {
     uint32_t value;
     readCheck(reader, &value, 4);
+#if NEEDS_BSWAP
+    value = bswap32(value);
+#endif
     return value;
 }
 
 float BinaryReader_readFloat32(BinaryReader* reader) {
+    uint32_t bits;
+    readCheck(reader, &bits, 4);
+#if NEEDS_BSWAP
+    bits = bswap32(bits);
+#endif
     float value;
-    readCheck(reader, &value, 4);
+    memcpy(&value, &bits, 4);
     return value;
 }
 
 uint64_t BinaryReader_readUint64(BinaryReader* reader) {
     uint64_t value;
     readCheck(reader, &value, 8);
-    return value;
-}
-
-int64_t BinaryReader_readInt64(BinaryReader* reader) {
-    int64_t value;
-    readCheck(reader, &value, 8);
+#if NEEDS_BSWAP
+    value = bswap64(value);
+#endif
     return value;
 }
 

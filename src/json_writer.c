@@ -83,12 +83,12 @@ JsonWriter JsonWriter_create(void) {
         abort();
     }
     buffer[0] = '\0';
-    return (JsonWriter) {
-        .buffer = buffer,
-        .length = 0,
-        .capacity = initialCapacity,
-        .needsComma = false,
-    };
+    JsonWriter w;
+    w.buffer = buffer;
+    w.length = 0;
+    w.capacity = initialCapacity;
+    w.needsComma = false;
+    return w;
 }
 
 void JsonWriter_free(JsonWriter* writer) {

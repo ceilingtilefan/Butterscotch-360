@@ -20,7 +20,7 @@ typedef struct {
 
 // ===[ Vtable Implementations ]===
 
-static char* noopResolvePath(MAYBE_UNUSED FileSystem* fs, MAYBE_UNUSED const char* relativePath) {
+static char* noopResolvePath(UNUSED FileSystem* fs, UNUSED const char* relativePath) {
     return safeStrdup("./");
 }
 
@@ -66,11 +66,11 @@ static bool noopDeleteFile(FileSystem* fs, const char* relativePath) {
 // ===[ Vtable ]===
 
 static FileSystemVtable noopFileSystemVtable = {
-    .resolvePath = noopResolvePath,
-    .fileExists = noopFileExists,
-    .readFileText = noopReadFileText,
-    .writeFileText = noopWriteFileText,
-    .deleteFile = noopDeleteFile,
+    noopResolvePath,
+    noopFileExists,
+    noopReadFileText,
+    noopWriteFileText,
+    noopDeleteFile,
 };
 
 // ===[ Lifecycle ]===

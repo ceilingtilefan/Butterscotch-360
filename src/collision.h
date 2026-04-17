@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common.h"
 #include "data_win.h"
 #include "instance.h"
 #include "vm.h"
@@ -32,7 +31,10 @@ static inline Sprite* Collision_getSprite(DataWin* dataWin, Instance* inst) {
 // Computes the axis-aligned bounding box for an instance using its collision sprite
 static inline InstanceBBox Collision_computeBBox(DataWin* dataWin, Instance* inst) {
     Sprite* spr = Collision_getSprite(dataWin, inst);
-    if (spr == nullptr) return (InstanceBBox){0, 0, 0, 0, false};
+    if (spr == nullptr) {
+        InstanceBBox empty; memset(&empty, 0, sizeof(empty));
+        return empty;
+    }
 
     GMLReal marginL = (GMLReal) spr->marginLeft;
     GMLReal marginR = (GMLReal) (spr->marginRight + 1);
@@ -68,13 +70,15 @@ static inline InstanceBBox Collision_computeBBox(DataWin* dataWin, Instance* ins
             if (cy[c] > maxY) maxY = cy[c];
         }
 
-        return (InstanceBBox){
-            .left   = inst->x + minX,
-            .right  = inst->x + maxX,
-            .top    = inst->y + minY,
-            .bottom = inst->y + maxY,
-            .valid  = true
-        };
+        {
+            InstanceBBox result;
+            result.left   = inst->x + minX;
+            result.right  = inst->x + maxX;
+            result.top    = inst->y + minY;
+            result.bottom = inst->y + maxY;
+            result.valid  = true;
+            return result;
+        }
     }
 
     // No rotation fast path
@@ -87,7 +91,15 @@ static inline InstanceBBox Collision_computeBBox(DataWin* dataWin, Instance* ins
     if (left > right) { GMLReal tmp = left; left = right; right = tmp; }
     if (top > bottom) { GMLReal tmp = top; top = bottom; bottom = tmp; }
 
-    return (InstanceBBox){left, right, top, bottom, true};
+    {
+        InstanceBBox result;
+        result.left = left;
+        result.right = right;
+        result.top = top;
+        result.bottom = bottom;
+        result.valid = true;
+        return result;
+    }
 }
 
 // Tests if point (px, py) hits the instance's precise collision mask

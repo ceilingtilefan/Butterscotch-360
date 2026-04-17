@@ -627,116 +627,7 @@ static void glDrawLineColor(Renderer* renderer, float x1, float y1, float x2, fl
     gl->quadCount++;
 }
 
-static void glDrawTriangle(Renderer *renderer, float x1, float y1, float x2, float y2, float x3, float y3, bool outline)
-{
-    GLRenderer* gl = (GLRenderer*) renderer;
-    if(outline)
-    {
-        glDrawLine(renderer, x1, y1, x2, y2, 1, renderer->drawColor, 1.0);
-        glDrawLine(renderer, x2, y2, x3, y3, 1, renderer->drawColor, 1.0);
-        glDrawLine(renderer, x3, y3, x1, y1, 1, renderer->drawColor, 1.0);
-    } else {
-        float r = (float) BGR_R(renderer->drawColor) / 255.0f;
-        float g = (float) BGR_G(renderer->drawColor) / 255.0f;
-        float b = (float) BGR_B(renderer->drawColor) / 255.0f;
-
-        flushBatch(gl);
-        
-        int i = 0;
-        float verts[24] = {
-            x1, y1, 0.0f, 0.0f, r, g, b, renderer->drawAlpha,
-            x2, y2, 0.0f, 0.0f, r, g, b, renderer->drawAlpha,
-            x3, y3, 0.0f, 0.0f, r, g, b, renderer->drawAlpha,
-        };
-
-        glBindBuffer(GL_ARRAY_BUFFER, gl->vbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, 3 * FLOATS_PER_VERTEX * sizeof(float), verts);
-
-        glBindTexture(GL_TEXTURE_2D, gl->whiteTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-    }
-}
-
 // ===[ Text Drawing ]===
-
-// Resolved font state shared between glDrawText and glDrawTextColor
-typedef struct {
-    Font* font;
-    TexturePageItem* fontTpag; // single TPAG for regular fonts (nullptr for sprite fonts)
-    GLuint texId;
-    int32_t texW, texH;
-    Sprite* spriteFontSprite; // source sprite for sprite fonts (nullptr for regular fonts)
-} GlFontState;
-
-// Resolves font texture state
-// Returns false if the font can't be drawn
-static bool glResolveFontState(GLRenderer* gl, DataWin* dw, Font* font, GlFontState* state) {
-    state->font = font;
-    state->fontTpag = nullptr;
-    state->texId = 0;
-    state->texW = 0;
-    state->texH = 0;
-    state->spriteFontSprite = nullptr;
-
-    if (!font->isSpriteFont) {
-        int32_t fontTpagIndex = DataWin_resolveTPAG(dw, font->textureOffset);
-        if (0 > fontTpagIndex) return false;
-
-        state->fontTpag = &dw->tpag.items[fontTpagIndex];
-        int16_t pageId = state->fontTpag->texturePageId;
-        if (0 > pageId || (uint32_t) pageId >= gl->textureCount) return false;
-
-        state->texId = gl->glTextures[pageId];
-        state->texW = gl->textureWidths[pageId];
-        state->texH = gl->textureHeights[pageId];
-        if (state->texW == 0 || state->texH == 0) return false;
-    } else if (font->spriteIndex >= 0 && dw->sprt.count > (uint32_t) font->spriteIndex) {
-        state->spriteFontSprite = &dw->sprt.sprites[font->spriteIndex];
-    }
-    return true;
-}
-
-// Resolves UV coordinates, texture ID, and local position for a single glyph
-// Returns false if the glyph can't be drawn
-static bool glResolveGlyph(GLRenderer* gl, DataWin* dw, GlFontState* state, FontGlyph* glyph, float cursorX, float cursorY, GLuint* outTexId, float* outU0, float* outV0, float* outU1, float* outV1, float* outLocalX0, float* outLocalY0) {
-    Font* font = state->font;
-    if (font->isSpriteFont && state->spriteFontSprite != nullptr) {
-        Sprite* sprite = state->spriteFontSprite;
-        int32_t glyphIndex = (int32_t) (glyph - font->glyphs);
-        if (0 > glyphIndex ||  glyphIndex >= (int32_t) sprite->textureCount) return false;
-
-        uint32_t tpagOffset = sprite->textureOffsets[glyphIndex];
-        int32_t tpagIdx = DataWin_resolveTPAG(dw, tpagOffset);
-        if (0 > tpagIdx) return false;
-
-        TexturePageItem* glyphTpag = &dw->tpag.items[tpagIdx];
-        int16_t pid = glyphTpag->texturePageId;
-        if (0 > pid || (uint32_t) pid >= gl->textureCount) return false;
-
-        *outTexId = gl->glTextures[pid];
-        int32_t tw = gl->textureWidths[pid];
-        int32_t th = gl->textureHeights[pid];
-        if (tw == 0 || th == 0) return false;
-
-        *outU0 = (float) glyphTpag->sourceX / (float) tw;
-        *outV0 = (float) glyphTpag->sourceY / (float) th;
-        *outU1 = (float) (glyphTpag->sourceX + glyphTpag->sourceWidth) / (float) tw;
-        *outV1 = (float) (glyphTpag->sourceY + glyphTpag->sourceHeight) / (float) th;
-
-        *outLocalX0 = cursorX + (float) glyph->offset;
-        *outLocalY0 = cursorY + (float) ((int32_t) glyphTpag->targetY - sprite->originY);
-    } else {
-        *outTexId = state->texId;
-        *outU0 = (float) (state->fontTpag->sourceX + glyph->sourceX) / (float) state->texW;
-        *outV0 = (float) (state->fontTpag->sourceY + glyph->sourceY) / (float) state->texH;
-        *outU1 = (float) (state->fontTpag->sourceX + glyph->sourceX + glyph->sourceWidth) / (float) state->texW;
-        *outV1 = (float) (state->fontTpag->sourceY + glyph->sourceY + glyph->sourceHeight) / (float) state->texH;
-
-        *outLocalX0 = cursorX + glyph->offset;
-        *outLocalY0 = cursorY;
-    }
-    return true;
-}
 
 static void glDrawText(Renderer* renderer, const char* text, float x, float y, float xscale, float yscale, float angleDeg) {
     GLRenderer* gl = (GLRenderer*) renderer;
@@ -747,8 +638,18 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
 
     Font* font = &dw->font.fonts[fontIndex];
 
-    GlFontState fontState;
-    if (!glResolveFontState(gl, dw, font, &fontState)) return;
+    // Resolve font texture page
+    int32_t fontTpagIndex = DataWin_resolveTPAG(dw, font->textureOffset);
+    if (0 > fontTpagIndex) return;
+
+    TexturePageItem* fontTpag = &dw->tpag.items[fontTpagIndex];
+    int16_t pageId = fontTpag->texturePageId;
+    if (0 > pageId || gl->textureCount <= (uint32_t) pageId) return;
+
+    GLuint texId = gl->glTextures[pageId];
+    int32_t texW = gl->textureWidths[pageId];
+    int32_t texH = gl->textureHeights[pageId];
+    if (texW == 0 || texH == 0) return;
 
     uint32_t color = renderer->drawColor;
     float alpha = renderer->drawAlpha;
@@ -756,10 +657,12 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
     float g = (float) BGR_G(color) / 255.0f;
     float b = (float) BGR_B(color) / 255.0f;
 
-    int32_t textLen = (int32_t) strlen(text);
+    // Preprocess: convert # to \n (and \# to literal #)
+    char* processed = TextUtils_preprocessGmlText(text);
+    int32_t textLen = (int32_t) strlen(processed);
 
     // Count lines, treating \r\n and \n\r as single breaks
-    int32_t lineCount = TextUtils_countLines(text, textLen);
+    int32_t lineCount = TextUtils_countLines(processed, textLen);
 
     // Vertical alignment offset
     float totalHeight = (float) lineCount * (float) font->emSize;
@@ -779,13 +682,13 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
     for (int32_t lineIdx = 0; lineCount > lineIdx; lineIdx++) {
         // Find end of current line
         int32_t lineEnd = lineStart;
-        while (textLen > lineEnd && !TextUtils_isNewlineChar(text[lineEnd])) {
+        while (textLen > lineEnd && !TextUtils_isNewlineChar(processed[lineEnd])) {
             lineEnd++;
         }
         int32_t lineLen = lineEnd - lineStart;
 
         // Horizontal alignment offset for this line
-        float lineWidth = TextUtils_measureLineWidth(font, text + lineStart, lineLen);
+        float lineWidth = TextUtils_measureLineWidth(font, processed + lineStart, lineLen);
         float halignOffset = 0;
         if (renderer->drawHalign == 1) halignOffset = -lineWidth / 2.0f;
         else if (renderer->drawHalign == 2) halignOffset = -lineWidth;
@@ -795,7 +698,7 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
         // Render each glyph in the line
         int32_t pos = 0;
         while (lineLen > pos) {
-            uint16_t ch = TextUtils_decodeUtf8(text + lineStart, lineLen, &pos);
+            uint16_t ch = TextUtils_decodeUtf8(processed + lineStart, lineLen, &pos);
             FontGlyph* glyph = TextUtils_findGlyph(font, ch);
             if (glyph == nullptr) continue;
             if (glyph->sourceWidth == 0 || glyph->sourceHeight == 0) {
@@ -803,20 +706,20 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
                 continue;
             }
 
-            float u0, v0, u1, v1;
-            float localX0, localY0;
-            GLuint glyphTexId;
-
-            if (!glResolveGlyph(gl, dw, &fontState, glyph, cursorX, cursorY, &glyphTexId, &u0, &v0, &u1, &v1, &localX0, &localY0)) {
-                cursorX += glyph->shift;
-                continue;
-            }
-
             // Flush if texture changed or batch full
-            if (gl->quadCount > 0 && gl->currentTextureId != glyphTexId) flushBatch(gl);
+            if (gl->quadCount > 0 && gl->currentTextureId != texId) flushBatch(gl);
             if (gl->quadCount >= MAX_QUADS) flushBatch(gl);
-            gl->currentTextureId = glyphTexId;
+            gl->currentTextureId = texId;
 
+            // Compute UVs from glyph position in the font's atlas
+            float u0 = (float) (fontTpag->sourceX + glyph->sourceX) / (float) texW;
+            float v0 = (float) (fontTpag->sourceY + glyph->sourceY) / (float) texH;
+            float u1 = (float) (fontTpag->sourceX + glyph->sourceX + glyph->sourceWidth) / (float) texW;
+            float v1 = (float) (fontTpag->sourceY + glyph->sourceY + glyph->sourceHeight) / (float) texH;
+
+            // Local quad position (before transform)
+            float localX0 = cursorX + glyph->offset;
+            float localY0 = cursorY;
             float localX1 = localX0 + (float) glyph->sourceWidth;
             float localY1 = localY0 + (float) glyph->sourceHeight;
 
@@ -848,173 +751,10 @@ static void glDrawText(Renderer* renderer, const char* text, float x, float y, f
             cursorX += glyph->shift;
             if (lineLen > pos) {
                 int32_t savedPos = pos;
-                uint16_t nextCh = TextUtils_decodeUtf8(text + lineStart, lineLen, &pos);
-                pos = savedPos;
-                cursorX += TextUtils_getKerningOffset(glyph, nextCh);
-            }
-        }
-
-        cursorY += (float) font->emSize;
-        // Skip past the newline, treating \r\n and \n\r as single breaks
-        if (textLen > lineEnd) {
-            lineStart = TextUtils_skipNewline(text, lineEnd, textLen);
-        } else {
-            lineStart = lineEnd;
-        }
-    }
-}
-
-static void glDrawTextColor(Renderer* renderer, const char* text, float x, float y, float xscale, float yscale, float angleDeg, int32_t _c1, int32_t _c2, int32_t _c3, int32_t _c4, float alpha) {
-    GLRenderer* gl = (GLRenderer*) renderer;
-    DataWin* dw = renderer->dataWin;
-
-    int32_t fontIndex = renderer->drawFont;
-    if (0 > fontIndex || dw->font.count <= (uint32_t) fontIndex) return;
-
-    Font* font = &dw->font.fonts[fontIndex];
-
-    GlFontState fontState;
-    if (!glResolveFontState(gl, dw, font, &fontState)) return;
-
-    // Preprocess: convert # to \n (and \# to literal #)
-    char* processed = TextUtils_preprocessGmlText(text);
-    int32_t textLen = (int32_t) strlen(processed);
-    if(textLen == 0) return;
-
-    // Count lines, treating \r\n and \n\r as single breaks
-    int32_t lineCount = TextUtils_countLines(processed, textLen);
-
-    // Vertical alignment offset
-    float totalHeight = (float) lineCount * (float) font->emSize;
-    float valignOffset = 0;
-    if (renderer->drawValign == 1) valignOffset = -totalHeight / 2.0f;
-    else if (renderer->drawValign == 2) valignOffset = -totalHeight;
-
-    // Build transform matrix
-    float angleRad = -angleDeg * ((float) M_PI / 180.0f);
-    Matrix4f transform;
-    Matrix4f_setTransform2D(&transform, x, y, xscale * font->scaleX, yscale * font->scaleY, angleRad);
-
-    // Iterate through lines
-    float cursorY = valignOffset;
-    int32_t lineStart = 0;
-
-    // get delta's  (16.16 format)
-	int32_t left_r_dx = ((_c2 & 0xff0000) - (_c1 & 0xff0000)) / textLen;
-	int32_t left_g_dx = ((((_c2 & 0xff00) << 8) - ((_c1 & 0xff00) << 8))) / textLen;
-	int32_t left_b_dx = ((((_c2 & 0xff) << 16) - ((_c1 & 0xff) << 16))) / textLen;
-
-	int32_t right_r_dx = ((_c3 & 0xff0000) - (_c4 & 0xff0000)) / textLen;
-	int32_t right_g_dx = ((((_c3 & 0xff00) << 8) - ((_c4 & 0xff00) << 8))) / textLen;
-	int32_t right_b_dx = ((((_c3 & 0xff) << 16) - ((_c4 & 0xff) << 16))) / textLen;
-
-    int32_t left_delta_r = left_r_dx;
-	int32_t left_delta_g = left_g_dx;
-	int32_t left_delta_b = left_b_dx;
-	int32_t right_delta_r = right_r_dx;
-	int32_t right_delta_g = right_g_dx;
-	int32_t right_delta_b = right_b_dx;
-
-    int32_t c1 = _c1;
-    int32_t c4 = _c4;
-
-    for (int32_t lineIdx = 0; lineCount > lineIdx; lineIdx++) {
-        // Find end of current line
-        int32_t lineEnd = lineStart;
-        while (textLen > lineEnd && !TextUtils_isNewlineChar(processed[lineEnd])) {
-            lineEnd++;
-        }
-        int32_t lineLen = lineEnd - lineStart;
-
-        // Horizontal alignment offset for this line
-        float lineWidth = TextUtils_measureLineWidth(font, processed + lineStart, lineLen);
-        float halignOffset = 0;
-        if (renderer->drawHalign == 1) halignOffset = -lineWidth / 2.0f;
-        else if (renderer->drawHalign == 2) halignOffset = -lineWidth;
-
-        float cursorX = halignOffset;
-
-        // Render each glyph in the line
-        int32_t pos = 0;
-        while (lineLen > pos) {
-            // do 16.16 maths
-            int32_t c2 = ((c1 & 0xff0000) + (left_delta_r & 0xff0000)) & 0xff0000;
-                c2 |= ((c1 & 0xff00) + (left_delta_g >> 8) & 0xff00) & 0xff00;
-                c2 |= ((c1 & 0xff) + (left_delta_b >> 16)) & 0xff;
-            int32_t c3 = ((c4 & 0xff0000) + (right_delta_r & 0xff0000)) & 0xff0000;
-                c3 |= ((c4 & 0xff00) + (right_delta_g >> 8) & 0xff00) & 0xff00;
-                c3 |= ((c4 & 0xff) + (right_delta_b >> 16)) & 0xff;
-
-            left_delta_r += left_r_dx;
-            left_delta_g += left_g_dx;
-            left_delta_b += left_b_dx;
-            right_delta_r += right_r_dx;
-            right_delta_g += right_g_dx;
-            right_delta_b += right_b_dx;
-
-            uint16_t ch = TextUtils_decodeUtf8(processed + lineStart, lineLen, &pos);
-            FontGlyph* glyph = TextUtils_findGlyph(font, ch);
-            if (glyph == nullptr) continue;
-            if (glyph->sourceWidth == 0 || glyph->sourceHeight == 0) {
-                cursorX += glyph->shift;
-                continue;
-            }
-
-            float u0, v0, u1, v1;
-            float localX0, localY0;
-            GLuint glyphTexId;
-
-            if (!glResolveGlyph(gl, dw, &fontState, glyph, cursorX, cursorY, &glyphTexId, &u0, &v0, &u1, &v1, &localX0, &localY0)) {
-                cursorX += glyph->shift;
-                continue;
-            }
-
-            // Flush if texture changed or batch full
-            if (gl->quadCount > 0 && gl->currentTextureId != glyphTexId) flushBatch(gl);
-            if (gl->quadCount >= MAX_QUADS) flushBatch(gl);
-            gl->currentTextureId = glyphTexId;
-
-            float localX1 = localX0 + (float) glyph->sourceWidth;
-            float localY1 = localY0 + (float) glyph->sourceHeight;
-
-            // Transform corners
-            float px0, py0, px1, py1, px2, py2, px3, py3;
-            Matrix4f_transformPoint(&transform, localX0, localY0, &px0, &py0);
-            Matrix4f_transformPoint(&transform, localX1, localY0, &px1, &py1);
-            Matrix4f_transformPoint(&transform, localX1, localY1, &px2, &py2);
-            Matrix4f_transformPoint(&transform, localX0, localY1, &px3, &py3);
-
-            // Write 4 vertices
-            float* verts = gl->vertexData + gl->quadCount * VERTICES_PER_QUAD * FLOATS_PER_VERTEX;
-
-            // top left
-            verts[0] = px0; verts[1] = py0; verts[2] = u0; verts[3] = v0;
-            verts[4] = ((float) BGR_R(c1) / 255.0f); verts[5] = ((float) BGR_G(c1) / 255.0f); verts[6] = ((float) BGR_B(c1) / 255.0f); verts[7] = alpha;
-
-            // top right
-            verts[8]  = px1; verts[9]  = py1; verts[10] = u1; verts[11] = v0;
-            verts[12] = ((float) BGR_R(c2) / 255.0f); verts[13] = ((float) BGR_G(c2) / 255.0f); verts[14] = ((float) BGR_B(c2) / 255.0f); verts[15] = alpha;
-
-            // bottom right
-            verts[16] = px2; verts[17] = py2; verts[18] = u1; verts[19] = v1;
-            verts[20] = ((float) BGR_R(c3) / 255.0f); verts[21] = ((float) BGR_G(c3) / 255.0f); verts[22] = ((float) BGR_B(c3) / 255.0f); verts[23] = alpha;
-
-            // bottom left
-            verts[24] = px3; verts[25] = py3; verts[26] = u0; verts[27] = v1;
-            verts[28] = ((float) BGR_R(c4) / 255.0f); verts[29] = ((float) BGR_G(c4) / 255.0f); verts[30] = ((float) BGR_B(c4) / 255.0f); verts[31] = alpha;
-
-            gl->quadCount++;
-
-            // Advance cursor by glyph shift + kerning
-            cursorX += glyph->shift;
-            if (lineLen > pos) {
-                int32_t savedPos = pos;
                 uint16_t nextCh = TextUtils_decodeUtf8(processed + lineStart, lineLen, &pos);
                 pos = savedPos;
                 cursorX += TextUtils_getKerningOffset(glyph, nextCh);
             }
-            c4 = c3;    // set left edge to be what the last right edge was....
-		    c1 = c2;    //
         }
 
         cursorY += (float) font->emSize;
@@ -1217,9 +957,7 @@ static RendererVtable glVtable = {
     .drawRectangle = glDrawRectangle,
     .drawLine = glDrawLine,
     .drawLineColor = glDrawLineColor,
-    .drawTriangle = glDrawTriangle,
     .drawText = glDrawText,
-    .drawTextColor = glDrawTextColor,
     .flush = glRendererFlush,
     .createSpriteFromSurface = glCreateSpriteFromSurface,
     .deleteSprite = glDeleteSprite,

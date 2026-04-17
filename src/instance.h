@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common.h"
 #include <stdint.h>
 #include "rvalue.h"
 #include "stb_ds.h"
@@ -16,7 +15,7 @@ typedef struct Instance {
     GMLReal x, y;
     GMLReal xprevious, yprevious;
     GMLReal xstart, ystart;
-    bool persistent, solid, active, destroyed, visible, createEventFired, outsideRoom;
+    bool persistent, solid, active, visible, createEventFired, outsideRoom;
     int32_t maskIndex; // collision mask sprite override (-1 = use spriteIndex)
 
     // Per-instance self variable storage (sparse stb_ds hashmap, keyed by varID)
@@ -57,7 +56,7 @@ void Instance_free(Instance* instance);
 // Get a self variable by varID. Returns RVALUE_UNDEFINED if absent. The returned RValue is non-owning.
 static inline RValue Instance_getSelfVar(Instance* inst, int32_t varID) {
     ptrdiff_t idx = hmgeti(inst->selfVars, varID);
-    if (0 > idx) return (RValue){ .type = RVALUE_UNDEFINED };
+    if (0 > idx) return RValue_makeUndefined();
     RValue result = inst->selfVars[idx].value;
     result.ownsString = false;
     return result;

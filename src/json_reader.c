@@ -351,11 +351,10 @@ static JsonValue* parseValue(JsonParser* parser) {
 JsonValue* JsonReader_parse(const char* json) {
     if (json == nullptr) return nullptr;
 
-    JsonParser parser = {
-        .input = json,
-        .position = 0,
-        .length = strlen(json),
-    };
+    JsonParser parser;
+    parser.input = json;
+    parser.position = 0;
+    parser.length = strlen(json);
 
     JsonValue* result = parseValue(&parser);
 

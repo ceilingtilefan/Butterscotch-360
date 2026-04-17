@@ -1,12 +1,10 @@
 #pragma once
 
-#include "common.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include "data_win.h"
-#include "runner.h"
 #include "utils.h"
 
 // ===[ Text Utility Functions ]===
@@ -104,14 +102,6 @@ static inline char* TextUtils_preprocessGmlText(const char* text) {
     }
     result[out] = '\0';
     return result;
-}
-
-// Preprocess GML text ONLY if the runner is not GameMaker: Studio 2
-// Returns a heap-allocated string that must be freed by the caller
-static inline char* TextUtils_preprocessGmlTextIfNeeded(Runner* runner, const char* text) {
-    if (runner->isGMS2)
-        return safeStrdup(text);
-    return TextUtils_preprocessGmlText(text);
 }
 
 // Returns true if c is \r or \n

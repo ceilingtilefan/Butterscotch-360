@@ -1,12 +1,25 @@
 #pragma once
 
-#include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include "real_type.h"
+
+// Portable "unused parameter" annotation (C23 has [[maybe_unused]],
+// but older GCC like the libxenon 9.2 toolchain only has __attribute__).
+#if __STDC_VERSION__ >= 202311L
+#define UNUSED [[maybe_unused]]
+#elif defined(__GNUC__)
+#define UNUSED __attribute__((unused))
+#else
+#define UNUSED
+#endif
+
+// The iteration macros use GCC extensions (typeof, statement expressions).
+// On MSVC (Xbox 360 XDK), compat_msvc.h provides compatible replacements.
+#ifndef BUTTERSCOTCH_MSVC_COMPAT
 
 #define forEach(type, item, array, count) \
     for (typeof(count) item##_i_ = 0; item##_i_ < (count); item##_i_++) \
@@ -17,8 +30,9 @@
     for (type* item = &(array)[index]; item; item = NULL)
 
 // The "typeof((typeof(n))0" is used to remove the "const" from the typeof
-
 #define repeat(n, it) for (typeof((typeof(n))0) it = 0; it < (n); it++)
+
+#endif // BUTTERSCOTCH_MSVC_COMPAT
 
 #define require(condition) \
     do { \
@@ -35,6 +49,10 @@ fprintf(stderr, "Requirement failed at %s:%d: %s\n", __FILE__, __LINE__, message
 abort(); \
 } \
 } while (0)
+
+// The safe allocation macros use GCC statement expressions ({...}).
+// On MSVC (Xbox 360 XDK), compat_msvc.h provides inline function replacements.
+#ifndef BUTTERSCOTCH_MSVC_COMPAT
 
 #define requireNotNull(ptr) ({ \
 typeof(ptr) _val = (ptr); \
@@ -99,6 +117,8 @@ _val; \
     } \
     _ptr; \
 })
+
+#endif // BUTTERSCOTCH_MSVC_COMPAT
 
 // Truncates to 6 decimal places, matching the HTML5 runner's ClampFloat
 static inline GMLReal clampFloat(GMLReal f) {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common.h"
 // ===[ FileSystem Vtable ]===
 // Platform-agnostic file system interface
 

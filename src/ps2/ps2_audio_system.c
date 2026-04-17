@@ -448,7 +448,7 @@ static void mixAudio(Ps2AudioSystem* ps2, int16_t* outBuf, int32_t samplePairs) 
 
 // ===[ Vtable Implementations ]===
 
-static void ps2Init(AudioSystem* audio, MAYBE_UNUSED DataWin* dataWin, MAYBE_UNUSED FileSystem* fileSystem) {
+static void ps2Init(AudioSystem* audio, UNUSED DataWin* dataWin, UNUSED FileSystem* fileSystem) {
     Ps2AudioSystem* ps2 = (Ps2AudioSystem*) audio;
 
     // Parse sound bank index
@@ -758,17 +758,17 @@ static void forEachInstance(Ps2AudioSystem* ps2, int32_t soundOrInstance, Instan
     }
 }
 
-static void actionStop(Ps2SoundInstance* sfx, Ps2MusicStream* music, MAYBE_UNUSED void* userData) {
+static void actionStop(Ps2SoundInstance* sfx, Ps2MusicStream* music, UNUSED void* userData) {
     if (sfx != nullptr) sfx->active = false;
     if (music != nullptr) music->active = false;
 }
 
-static void actionPause(Ps2SoundInstance* sfx, Ps2MusicStream* music, MAYBE_UNUSED void* userData) {
+static void actionPause(Ps2SoundInstance* sfx, Ps2MusicStream* music, UNUSED void* userData) {
     if (sfx != nullptr) sfx->paused = true;
     if (music != nullptr) music->paused = true;
 }
 
-static void actionResume(Ps2SoundInstance* sfx, Ps2MusicStream* music, MAYBE_UNUSED void* userData) {
+static void actionResume(Ps2SoundInstance* sfx, Ps2MusicStream* music, UNUSED void* userData) {
     if (sfx != nullptr) sfx->paused = false;
     if (music != nullptr) music->paused = false;
 }
@@ -1029,25 +1029,16 @@ static void ps2SetMasterGain(AudioSystem* audio, float gain) {
     ps2->masterGain = gain;
 }
 
-static void ps2SetChannelCount(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int32_t count) {
+static void ps2SetChannelCount(UNUSED AudioSystem* audio, UNUSED int32_t count) {
     // No-op: software mixer handles all channels internally
 }
 
-static void ps2GroupLoad(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int32_t groupIndex) {
+static void ps2GroupLoad(UNUSED AudioSystem* audio, UNUSED int32_t groupIndex) {
     // No-op: all audio is available from SOUNDS.BIN
 }
 
-static bool ps2GroupIsLoaded(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int32_t groupIndex) {
+static bool ps2GroupIsLoaded(UNUSED AudioSystem* audio, UNUSED int32_t groupIndex) {
     return true;
-}
-
-static int32_t ps2CreateStream(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED const char* filename) {
-    fprintf(stderr, "PS2AudioSystem: audio_create_stream not supported\n");
-    return -1;
-}
-
-static bool ps2DestroyStream(MAYBE_UNUSED AudioSystem* audio, MAYBE_UNUSED int32_t streamIndex) {
-    return false;
 }
 
 // ===[ Vtable ]===
@@ -1074,8 +1065,6 @@ static AudioSystemVtable ps2AudioSystemVtable = {
     .setChannelCount = ps2SetChannelCount,
     .groupLoad = ps2GroupLoad,
     .groupIsLoaded = ps2GroupIsLoaded,
-    .createStream = ps2CreateStream,
-    .destroyStream = ps2DestroyStream,
 };
 
 // ===[ Lifecycle ]===

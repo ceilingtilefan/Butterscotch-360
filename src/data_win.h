@@ -1,9 +1,7 @@
 #pragma once
 
-#include "common.h"
 #include <stdint.h>
 #include <stddef.h>
-#include <stdbool.h>
 
 // Forward declaration for progress callback
 typedef struct DataWin DataWin;
@@ -73,7 +71,6 @@ typedef struct {
     uint32_t debuggerPort;
     uint32_t roomOrderCount;
     int32_t* roomOrder;
-    float gms2FPS;
 } Gen8;
 
 // ===[ OPTN - Options ]===
@@ -192,11 +189,6 @@ typedef struct {
     uint32_t sepMasks;
     int32_t originX;
     int32_t originY;
-    uint32_t sVersion;
-    uint32_t sSpriteType;
-    float gms2PlaybackSpeed;
-    bool gms2PlaybackSpeedType;
-    bool specialType;
     uint32_t textureCount;
     uint32_t* textureOffsets; // absolute file offsets to TexturePageItems
     uint32_t maskCount;       // number of collision masks (one per frame, or 0)
@@ -215,19 +207,6 @@ typedef struct {
     bool smooth;
     bool preload;
     uint32_t textureOffset; // absolute file offset to TexturePageItem
-    uint32_t gms2UnknownAlways2;
-    uint32_t gms2TileWidth;
-    uint32_t gms2TileHeight;
-    uint32_t gms2TileSeparationX;
-    uint32_t gms2TileSeparationY;
-    uint32_t gms2OutputBorderX;
-    uint32_t gms2OutputBorderY;
-    uint32_t gms2TileColumns;
-    uint32_t gms2ItemsPerTileCount;
-    uint32_t gms2TileCount;
-    int gms2ExportedSpriteIndex;
-    int64_t gms2FrameLength;
-    uint32_t *gms2TileIds;
 } Background;
 
 typedef struct {
@@ -356,9 +335,6 @@ typedef struct {
     float scaleY;
     uint32_t glyphCount;
     FontGlyph* glyphs;
-    // Sprite font fields (only valid when isSpriteFont is true)
-    bool isSpriteFont;
-    int32_t spriteIndex; // source sprite index (-1 for regular fonts)
 } Font;
 
 typedef struct {
@@ -498,7 +474,6 @@ typedef struct {
 typedef struct {
     int32_t x;
     int32_t y;
-    bool useSpriteDefinition;
     int32_t backgroundDefinition;
     int32_t sourceX;
     int32_t sourceY;
@@ -510,71 +485,6 @@ typedef struct {
     float scaleY;
     uint32_t color;
 } RoomTile;
-
-enum RoomLayerType : uint32_t
-{
-    RoomLayerType_Path = 0,
-    RoomLayerType_Background = 1,
-    RoomLayerType_Instances = 2,
-    RoomLayerType_Assets = 3,
-    RoomLayerType_Tiles = 4,
-    RoomLayerType_Effect = 6,
-    RoomLayerType_Path2 = 7
-};
-
-typedef struct {
-    const char* name;
-    uint32_t spritePtr;
-    int32_t x;
-    int32_t y;
-    float scaleX;
-    float scaleY;
-    uint32_t color;
-    float animationSpeed;
-    uint32_t animationSpeedType;
-    float frameIndex;
-    float rotation;
-} SpriteInstance;
-
-typedef struct {
-    uint32_t legacyTileCount;
-    RoomTile *legacyTiles;
-    uint32_t spriteCount;
-    SpriteInstance *sprites;
-} RoomLayerAssetsData;
-
-typedef struct {
-    bool visible;
-    bool foreground;
-    int32_t spriteIndex; // into SPRT (-1 = none)
-    bool hTiled;
-    bool vTiled;
-    bool stretch;
-    uint32_t color;
-    float firstFrame;
-    float animSpeed;
-    uint32_t animSpeedType;
-} RoomLayerBackgroundData;
-
-typedef struct {
-    uint32_t instanceCount;
-    uint32_t* instanceIds;
-} RoomLayerInstancesData;
-
-typedef struct {
-    const char* name;
-    uint32_t id;
-    uint32_t type;
-    int32_t depth;
-    float xOffset;
-    float yOffset;
-    float hSpeed;
-    float vSpeed;
-    bool visible;
-    RoomLayerAssetsData *assetsData;
-    RoomLayerBackgroundData *backgroundData;
-    RoomLayerInstancesData *instancesData;
-} RoomLayer;
 
 typedef struct {
     const char* name;
@@ -601,8 +511,6 @@ typedef struct {
     RoomGameObject* gameObjects;
     uint32_t tileCount;
     RoomTile* tiles;
-    uint32_t layerCount;
-    RoomLayer* layers;
 } Room;
 
 typedef struct {
@@ -756,14 +664,11 @@ typedef struct DataWin {
 
     // Lookup map: absolute file offset -> TPAG index (built during TPAG parsing)
     struct { uint32_t key; int32_t value; }* tpagOffsetMap;
-    // Lookup map: absolute file offset -> SPRT index (built during SPRT parsing)
-    struct { uint32_t key; int32_t value; }* sprtOffsetMap;
 } DataWin;
 
 DataWin* DataWin_parse(const char* filePath, DataWinParserOptions options);
 void DataWin_free(DataWin* dataWin);
 void DataWin_printDebugSummary(DataWin* dataWin);
 int32_t DataWin_resolveTPAG(DataWin* dw, uint32_t offset);
-int32_t DataWin_resolveSPRT(DataWin* dw, uint32_t offset);
 void GamePath_computeInternal(GamePath* path);
 PathPositionResult GamePath_getPosition(GamePath* path, double t);
